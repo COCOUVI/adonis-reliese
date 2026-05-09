@@ -1,5 +1,5 @@
 // Strategy interface for customizing model/property/relation names.
-export interface INamingStrategy {
+export interface NamingStrategy {
   modelName(table: string): string
   propertyName(column: string): string
   relationName(table: string, type: string): string
@@ -15,5 +15,5 @@ export interface ReliesesConfig {
   }
   withTimestamps: boolean
   withSoftDelete: boolean
-  namingStrategy?: INamingStrategy
+  namingStrategy?: NamingStrategy
 }

@@ -26,6 +26,8 @@ export class ConfigLoader {
     const code = (error as { code?: string }).code
     const message = (error as { message?: string }).message
 
-    return code === 'ERR_MODULE_NOT_FOUND' && typeof message === 'string' && message.includes(configPath)
+    return (
+      code === 'ERR_MODULE_NOT_FOUND' && typeof message === 'string' && message.includes(configPath)
+    )
   }
 }
