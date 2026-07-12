@@ -35,7 +35,7 @@ Lire et valider `config/reliese.ts`. Aucune dépendance — c'est le point de d�
 
 | Étape | Détail |
 |-------|--------|
-| 1. Interface config | Créer `src/types.ts` avec `ReliesesConfig` : `{ outputDir: string, connection: string, tableFilter: { include: string[], exclude: string[] }, withTimestamps: boolean, withSoftDelete: boolean, namingStrategy?: NamingStrategy }`. |
+| 1. Interface config | Créer `src/types.ts` avec `ReliesesConfig` : `{ outputDir: string, connection: string, tableFilter: { include: string[], exclude: string[] }, withTimestamps: boolean, withSoftDelete: boolean, namingStrategy?: INamingStrategy }`. |
 | 2. defineConfig() | Exporter `defineConfig(cfg: Partial<ReliesesConfig>): ReliesesConfig`. Fusionne avec les defaults. Retourne `cfg` tel quel — pattern AdonisJS standard. |
 | 3. Defaults | `outputDir='app/models'`, `tableFilter.exclude=['adonis_schema','adonis_schema_versions']`, `withTimestamps=true`, `withSoftDelete=false`. |
 | 4. ConfigLoader.load() | `import()` dynamique de `config/reliese.ts` via `process.cwd()`. Lancer une erreur claire si le fichier est absent : `"Run 'node ace reliese:install' first"`. |
