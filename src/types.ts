@@ -72,3 +72,14 @@ export interface TypeMapperOutput {
   needsDateTimeImport: boolean
   needsSoftDeletes: boolean
 }
+
+// ── Model writer ────────────────────────────────────────
+
+export type WriteStatus = 'created' | 'skipped' | 'error'
+
+export interface WriteResult {
+  status: WriteStatus
+  modelName: string
+  filePath: string
+  error?: string
+}
