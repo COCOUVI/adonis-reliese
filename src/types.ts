@@ -37,6 +37,9 @@ export interface ForeignKeyDef {
   column: string
   foreignTable: string
   foreignColumn: string
+  // True when the FK column carries a UNIQUE index. Used by the
+  // RelationDetector to decide between `hasOne` and `hasMany`.
+  isUnique?: boolean
 }
 
 // Common interface all inspectors must implement
@@ -71,6 +74,32 @@ export interface TypeMapperOutput {
   columns: MappedColumn[]
   needsDateTimeImport: boolean
   needsSoftDeletes: boolean
+}
+
+// ── Relation detection ─────────────────────────────────
+
+export type RelationType = 'belongsTo' | 'hasMany' | 'hasOne' | 'manyToMany'
+
+// A relation inferred for a given model. Consumed by the ModelWriter
+// (Feature 7) to emit the matching Lucid decorators.
+export interface RelationDef {
+  type: RelationType
+  // PascalCase model name of the related table (e.g. `User`).
+  targetModel: string
+  // Raw table name of the related table (used to resolve the import path).
+  targetTable: string
+  // camelCase property name used on the model (e.g. `user`, `posts`).
+  propertyName: string
+  // Only for manyToMany: the junction table name.
+  pivotTable?: string
+  // True when the related table was not part of the inspected tables.
+  isRemoteMissing?: boolean
+}
+
+// Schema data for a single table, as consumed by the RelationDetector.
+export interface TableSchema {
+  columns: ColumnDef[]
+  foreignKeys: ForeignKeyDef[]
 }
 
 // ── Model writer ────────────────────────────────────────

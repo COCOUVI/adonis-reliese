@@ -52,23 +52,41 @@ export class MysqlInspector implements SchemaInspector {
     )
   }
 
+  // Returns the set of columns carrying a UNIQUE index (used by the
+  // RelationDetector to tell hasOne apart from hasMany).
+  async #getUniqueColumns(table: string): Promise<Set<string>> {
+    const result = await this.#knex.raw(
+      `SELECT COLUMN_NAME
+        FROM   information_schema.STATISTICS
+        WHERE  TABLE_SCHEMA = DATABASE()
+          AND  TABLE_NAME   = ?
+          AND  NON_UNIQUE   = 0`,
+      [table]
+    )
+
+    return new Set(result[0].map((r: { COLUMN_NAME: string }) => r.COLUMN_NAME))
+  }
+
   // Returns foreign keys from KEY_COLUMN_USAGE.
   // No join needed: REFERENCED_TABLE_NAME is directly available.
   async getForeignKeys(table: string): Promise<ForeignKeyDef[]> {
     const result = await this.#knex.raw(
       `SELECT COLUMN_NAME, REFERENCED_TABLE_NAME AS foreign_table, REFERENCED_COLUMN_NAME AS foreign_column
-       FROM   information_schema.KEY_COLUMN_USAGE
-       WHERE  TABLE_SCHEMA = DATABASE()
-         AND  TABLE_NAME   = ?
-         AND  REFERENCED_TABLE_NAME IS NOT NULL`,
+        FROM   information_schema.KEY_COLUMN_USAGE
+        WHERE  TABLE_SCHEMA = DATABASE()
+          AND  TABLE_NAME   = ?
+          AND  REFERENCED_TABLE_NAME IS NOT NULL`,
       [table]
     )
+
+    const uniqueColumns = await this.#getUniqueColumns(table)
 
     return result[0].map(
       (r: { COLUMN_NAME: string; foreign_table: string; foreign_column: string }) => ({
         column: r.COLUMN_NAME,
         foreignTable: r.foreign_table,
         foreignColumn: r.foreign_column,
+        isUnique: uniqueColumns.has(r.COLUMN_NAME),
       })
     )
   }
