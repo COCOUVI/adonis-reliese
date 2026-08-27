@@ -14,7 +14,7 @@ jobs:
         with:
           node-version: 24
       - name: Install
-        run: npm install
+        run: npm install --force
       - name: Run lint
         run: npm run lint
 
@@ -26,7 +26,7 @@ jobs:
         with:
           node-version: 24
       - name: Install
-        run: npm install
+        run: npm install --force
       - name: Run typecheck
         run: npm run typecheck
 
@@ -43,7 +43,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
       - name: Install
-        run: npm install
+        run: npm install --force
       - name: Rebuild native bindings
         run: npm rebuild @swc/core rolldown
       - name: Run tests
