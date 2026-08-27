@@ -2,6 +2,8 @@ import db from '@adonisjs/lucid/services/db'
 import type { Knex } from 'knex'
 import type { ColumnDef, ForeignKeyDef, SchemaInspector } from '../types.js'
 
+// PostgreSQL inspector: queries information_schema to extract
+// tables, columns and foreign keys from the 'public' schema.
 export class PgInspector implements SchemaInspector {
   #knex: Knex
 
@@ -9,6 +11,7 @@ export class PgInspector implements SchemaInspector {
     this.#knex = db.connection(connectionName).getWriteClient()
   }
 
+  // Returns all BASE TABLE names from the public schema.
   async getTables(): Promise<string[]> {
     const result = await this.#knex.raw(
       `SELECT table_name
@@ -20,6 +23,8 @@ export class PgInspector implements SchemaInspector {
     return result.rows.map((r: { table_name: string }) => r.table_name)
   }
 
+  // Returns column definitions for a given table.
+  // Primary key detection uses a sub-query on table_constraints.
   async getColumns(table: string): Promise<ColumnDef[]> {
     const pkResult = await this.#knex.raw(
       `SELECT kcu.column_name
@@ -50,7 +55,7 @@ export class PgInspector implements SchemaInspector {
       }) => ({
         name: r.column_name,
         sqlType: r.data_type,
-        tsType: '', // filled later by TypeMapper
+        tsType: '', // filled later by TypeMapper (Feature 4)
         isNullable: r.is_nullable === 'YES',
         isPrimary: pkSet.has(r.column_name),
         hasDefault: r.column_default !== null,
@@ -58,6 +63,8 @@ export class PgInspector implements SchemaInspector {
     )
   }
 
+  // Returns foreign keys via a triple join on
+  // table_constraints / key_column_usage / constraint_column_usage.
   async getForeignKeys(table: string): Promise<ForeignKeyDef[]> {
     const result = await this.#knex.raw(
       `SELECT kcu.column_name,
