@@ -2,6 +2,8 @@ import db from '@adonisjs/lucid/services/db'
 import type { Knex } from 'knex'
 import type { ColumnDef, ForeignKeyDef, SchemaInspector } from '../types.js'
 
+// MySQL / MariaDB inspector: queries information_schema with
+// TABLE_SCHEMA = DATABASE() to target the current database.
 export class MysqlInspector implements SchemaInspector {
   #knex: Knex
 
@@ -9,6 +11,7 @@ export class MysqlInspector implements SchemaInspector {
     this.#knex = db.connection(connectionName).getWriteClient()
   }
 
+  // Returns all BASE TABLE names from the current database.
   async getTables(): Promise<string[]> {
     const result = await this.#knex.raw(
       `SELECT TABLE_NAME
@@ -17,9 +20,11 @@ export class MysqlInspector implements SchemaInspector {
          AND  TABLE_TYPE   = 'BASE TABLE'`
     )
 
+    // MySQL returns [rows, fields] from knex.raw() → result[0] holds the rows.
     return result[0].map((r: { TABLE_NAME: string }) => r.TABLE_NAME)
   }
 
+  // Returns column definitions. Primary key is identified by COLUMN_KEY = 'PRI'.
   async getColumns(table: string): Promise<ColumnDef[]> {
     const result = await this.#knex.raw(
       `SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_DEFAULT, COLUMN_KEY
@@ -47,6 +52,8 @@ export class MysqlInspector implements SchemaInspector {
     )
   }
 
+  // Returns foreign keys from KEY_COLUMN_USAGE.
+  // No join needed: REFERENCED_TABLE_NAME is directly available.
   async getForeignKeys(table: string): Promise<ForeignKeyDef[]> {
     const result = await this.#knex.raw(
       `SELECT COLUMN_NAME, REFERENCED_TABLE_NAME AS foreign_table, REFERENCED_COLUMN_NAME AS foreign_column
@@ -66,6 +73,9 @@ export class MysqlInspector implements SchemaInspector {
     )
   }
 
+  // Normalizes a MySQL type for the TypeMapper:
+  //   - tinyint(1) → boolean
+  //   - varchar(255) → varchar (strip precision)
   #normalizeType(rawType: string): string {
     const type = rawType.toLowerCase()
 

@@ -3,6 +3,8 @@ import type { SchemaInspector } from '../types.js'
 import { PgInspector } from './pg_inspector.js'
 import { MysqlInspector } from './mysql_inspector.js'
 
+// Factory: detects the dialect from the Lucid connection and
+// instantiates the matching inspector (PostgreSQL or MySQL).
 export function createInspector(connectionName: string = 'default'): SchemaInspector {
   const client = db.connection(connectionName)
   const dialect = client.dialect.name

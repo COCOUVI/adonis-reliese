@@ -65,7 +65,15 @@ The cherry-picking uses the `files` property inside the `package.json` file. By 
 
 ```json
 {
-  "files": ["build/src", "build/providers", "build/stubs", "build/index.d.ts", "build/index.js", "build/configure.d.ts", "build/configure.js"]
+  "files": [
+    "build/src",
+    "build/providers",
+    "build/stubs",
+    "build/index.d.ts",
+    "build/index.js",
+    "build/configure.d.ts",
+    "build/configure.js"
+  ]
 }
 ```
 

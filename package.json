@@ -117,5 +117,9 @@
       "tests/**"
     ]
   },
-  "prettier": "@adonisjs/prettier-config"
+  "prettier": "@adonisjs/prettier-config",
+  "dependencies": {
+    "@rolldown/binding-win32-x64-msvc": "^1.0.0-rc.17",
+    "@swc/core-win32-x64-msvc": "^1.15.43"
+  }
 }
