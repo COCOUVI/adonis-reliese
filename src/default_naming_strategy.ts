@@ -65,6 +65,38 @@ function snakeToPascal(s: string): string {
     .join('')
 }
 
+// Very small English pluralizer, enough for typical table names.
+function pluralizePascal(pascal: string): string {
+  if (pascal.length === 0) return pascal
+  const lower = pascal.toLowerCase()
+  // Already plural (e.g. "Posts" coming from a "posts" table): leave as-is.
+  if (lower.endsWith('s')) return pascal
+  if (lower.endsWith('x') || lower.endsWith('z')) return `${pascal}es`
+  if (lower.endsWith('ch') || lower.endsWith('sh')) return `${pascal}es`
+  if (lower.endsWith('y') && !'aeiou'.includes(lower[lower.length - 2])) {
+    return `${pascal.slice(0, -1)}ies`
+  }
+  return `${pascal}s`
+}
+
+// Inverse of pluralizePascal, enough for typical table names.
+function singularizePascal(pascal: string): string {
+  if (pascal.length === 0) return pascal
+  const lower = pascal.toLowerCase()
+  if (lower.endsWith('ies')) return `${pascal.slice(0, -3)}y`
+  if (
+    lower.endsWith('ses') ||
+    lower.endsWith('xes') ||
+    lower.endsWith('zes') ||
+    lower.endsWith('ches') ||
+    lower.endsWith('shes')
+  ) {
+    return pascal.slice(0, -2)
+  }
+  if (lower.endsWith('s') && !lower.endsWith('ss')) return pascal.slice(0, -1)
+  return pascal
+}
+
 function snakeToCamel(s: string): string {
   const parts = s.split('_').filter(Boolean)
   const camel = parts
@@ -76,16 +108,18 @@ function snakeToCamel(s: string): string {
 // Default naming strategy used when the user does not provide a custom one.
 export class DefaultNamingStrategy implements NamingStrategy {
   modelName(table: string): string {
-    return snakeToPascal(table)
+    return singularizePascal(snakeToPascal(table))
   }
 
   propertyName(column: string): string {
     return snakeToCamel(column)
   }
 
-  relationName(table: string, _type: string): string {
-    // Singularize simple table names for belongsTo/hasOne,
-    // pluralizing is handled by the RelationDetector later.
-    return snakeToPascal(table)
+  relationName(table: string, type: string): string {
+    const pascal = snakeToPascal(table)
+    if (type === 'hasMany' || type === 'manyToMany') {
+      return pluralizePascal(pascal)
+    }
+    return singularizePascal(pascal)
   }
 }

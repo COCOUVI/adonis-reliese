@@ -63,27 +63,46 @@ export class PgInspector implements SchemaInspector {
     )
   }
 
+  // Returns the set of columns carrying a UNIQUE constraint (used by the
+  // RelationDetector to tell hasOne apart from hasMany).
+  async #getUniqueColumns(table: string): Promise<Set<string>> {
+    const result = await this.#knex.raw(
+      `SELECT kcu.column_name
+        FROM   information_schema.table_constraints tc
+        JOIN   information_schema.key_column_usage  kcu USING (constraint_name, table_schema)
+        WHERE  tc.constraint_type = 'UNIQUE'
+          AND  tc.table_name      = ?
+          AND  tc.table_schema    = 'public'`,
+      [table]
+    )
+
+    return new Set(result.rows.map((r: { column_name: string }) => r.column_name))
+  }
+
   // Returns foreign keys via a triple join on
   // table_constraints / key_column_usage / constraint_column_usage.
   async getForeignKeys(table: string): Promise<ForeignKeyDef[]> {
     const result = await this.#knex.raw(
       `SELECT kcu.column_name,
-              ccu.table_name  AS foreign_table,
-              ccu.column_name AS foreign_column
-       FROM   information_schema.table_constraints       tc
-       JOIN   information_schema.key_column_usage        kcu USING (constraint_name, table_schema)
-       JOIN   information_schema.constraint_column_usage ccu USING (constraint_name, table_schema)
-       WHERE  tc.constraint_type = 'FOREIGN KEY'
-         AND  tc.table_name      = ?
-         AND  tc.table_schema    = 'public'`,
+               ccu.table_name  AS foreign_table,
+               ccu.column_name AS foreign_column
+        FROM   information_schema.table_constraints       tc
+        JOIN   information_schema.key_column_usage        kcu USING (constraint_name, table_schema)
+        JOIN   information_schema.constraint_column_usage ccu USING (constraint_name, table_schema)
+        WHERE  tc.constraint_type = 'FOREIGN KEY'
+          AND  tc.table_name      = ?
+          AND  tc.table_schema    = 'public'`,
       [table]
     )
+
+    const uniqueColumns = await this.#getUniqueColumns(table)
 
     return result.rows.map(
       (r: { column_name: string; foreign_table: string; foreign_column: string }) => ({
         column: r.column_name,
         foreignTable: r.foreign_table,
         foreignColumn: r.foreign_column,
+        isUnique: uniqueColumns.has(r.column_name),
       })
     )
   }
