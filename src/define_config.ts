@@ -10,6 +10,7 @@ const defaults: ReliesesConfig = {
   },
   withTimestamps: true,
   withSoftDelete: false,
+  withBaseFiles: false,
 }
 
 // Merge defaults with user config while preserving tableFilter sub-keys.

@@ -17,6 +17,9 @@ export interface ReliesesConfig {
   }
   withTimestamps: boolean
   withSoftDelete: boolean
+  // When true, each table generates a always-regenerated `base/` file plus a
+  // child file created only once (Laravel Reliese `base_files` parity).
+  withBaseFiles: boolean
   namingStrategy?: NamingStrategy
 }
 
@@ -106,9 +109,15 @@ export interface TableSchema {
 
 export type WriteStatus = 'created' | 'skipped' | 'error'
 
+// Result of a single ModelWriter.write() call. In default mode (no base files)
+// the single model file is reported through `baseStatus` / `basePath`, and
+// `childStatus` is `'skipped'`. In `base_files` mode both the always-regenerated
+// base file and the child file (created once) are reported.
 export interface WriteResult {
-  status: WriteStatus
   modelName: string
-  filePath: string
+  basePath: string
+  childPath: string
+  baseStatus: WriteStatus
+  childStatus: WriteStatus
   error?: string
 }
