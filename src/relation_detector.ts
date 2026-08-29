@@ -7,12 +7,12 @@ import type {
 } from './types.js'
 import { DefaultNamingStrategy } from './default_naming_strategy.js'
 
-// Columns that never count as "extra" when deciding whether a table is a
-// many-to-many pivot (junction) table.
+// Columns that never count as "extra" when deciding whether a table
+// is a many-to-many join (pivot) table.
 const SYSTEM_COLUMNS = new Set(['id', 'created_at', 'updated_at', 'deleted_at'])
 
-// Infers Lucid relations (belongsTo / hasMany / hasOne / manyToMany) from the
-// foreign keys collected across every inspected table.
+// Infers Lucid relations (belongsTo / hasMany / hasOne / manyToMany) from
+// the foreign keys collected across all inspected tables.
 export class RelationDetector {
   #strategy: NamingStrategy
 
@@ -27,7 +27,7 @@ export class RelationDetector {
       result.set(name, [])
     }
 
-    // Outgoing FKs per table, plus a reverse index of incoming FKs.
+    // Outgoing FKs per table, plus an inverse index of incoming FKs.
     const fksByTable = new Map<string, ForeignKeyDef[]>()
     const refsToTable = new Map<string, { fromTable: string; fk: ForeignKeyDef }[]>()
     for (const [table, data] of tablesData) {
@@ -39,8 +39,8 @@ export class RelationDetector {
       }
     }
 
-    // A pivot (junction) table gets manyToMany on both sides instead of plain
-    // hasMany/belongsTo relations.
+    // A pivot (join) table gets a manyToMany from both sides, instead
+    // of the simple hasMany/belongsTo relations.
     const pivots = new Set<string>()
     for (const [table, data] of tablesData) {
       if (this.#isPivot(data)) {
@@ -51,14 +51,14 @@ export class RelationDetector {
     for (const table of tableNames) {
       const relations = result.get(table)!
 
-      // belongsTo — every outgoing FK points to a parent.
+      // belongsTo — each outgoing FK points to a parent.
       if (!pivots.has(table)) {
         for (const fk of fksByTable.get(table) ?? []) {
           relations.push(this.#belongsTo(fk, tableNames))
         }
       }
 
-      // hasMany / hasOne  every incoming FK means a child references this table.
+      // hasMany / hasOne — each incoming FK means a child references this table.
       for (const { fromTable, fk } of refsToTable.get(table) ?? []) {
         if (pivots.has(fromTable)) continue
         const isUnique = fk.isUnique === true
@@ -73,7 +73,7 @@ export class RelationDetector {
       }
     }
 
-    // manyToMany — add the relation on both sides of each pivot.
+    // manyToMany — adds the relation on both sides of each pivot.
     for (const pivot of pivots) {
       const sides = [...new Set((fksByTable.get(pivot) ?? []).map((fk) => fk.foreignTable))].filter(
         (t) => tableNames.includes(t)
@@ -109,8 +109,8 @@ export class RelationDetector {
     }
   }
 
-  // A pivot table has exactly two FKs to two different tables and no extra
-  // columns besides those FKs and the usual system columns.
+  // A pivot table has exactly two FKs to two different tables and no
+  // extra column besides those FKs and the usual system columns.
   #isPivot(data: TableSchema): boolean {
     const fks = data.foreignKeys
     if (fks.length !== 2) return false

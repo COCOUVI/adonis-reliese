@@ -6,7 +6,7 @@ export interface TypeMapperOptions {
   withSoftDelete: boolean
 }
 
-// Converts ColumnDef[] (from a SchemaInspector) into MappedColumn[]
+// Converts ColumnDef[] (from a SchemaInspector) into MappedColumn[],
 // with proper TypeScript types and Lucid decorator strings.
 export class TypeMapper {
   #options: TypeMapperOptions
@@ -53,7 +53,7 @@ export class TypeMapper {
         isNullable: col.isNullable,
         isPrimary: col.isPrimary,
         hasDefault: col.hasDefault,
-        decorator: `column() // TODO: type SQL non mappé : ${col.sqlType}`,
+        decorator: `column() // TODO: unmapped SQL type: ${col.sqlType}`,
       }
     }
 

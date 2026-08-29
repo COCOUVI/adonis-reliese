@@ -14,7 +14,9 @@
   "main": "build/index.js",
   "exports": {
     ".": "./build/index.js",
-    "./types": "./build/src/types.js"
+    "./types": "./build/src/types.js",
+    "./commands": "./build/src/commands/index.js",
+    "./providers/reliese_provider": "./build/providers/reliese_provider.js"
   },
   "scripts": {
     "copy:templates": "copyfiles \"stubs/**/*.stub\" build",
@@ -72,7 +74,9 @@
   "tsdown": {
     "entry": [
       "./index.ts",
-      "./configure.ts"
+      "./configure.ts",
+      "./src/commands/index.ts",
+      "./providers/reliese_provider.ts"
     ],
     "outDir": "./build",
     "clean": true,

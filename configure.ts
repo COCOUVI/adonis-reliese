@@ -14,4 +14,11 @@
 
 import type Configure from '@adonisjs/core/commands/configure'
 
-export async function configure(_command: Configure) {}
+export async function configure(command: Configure) {
+  const codemods = await command.createCodemods()
+
+  await codemods.updateRcFile((rcFile) => {
+    rcFile.addCommand('adonis-reliese/commands')
+    rcFile.addProvider('adonis-reliese/providers/reliese_provider')
+  })
+}

@@ -1,0 +1,11 @@
+import { defineConfig } from 'adonis-reliese'
+
+export default defineConfig({
+  outputDir: 'app/models',
+  connection: 'default',
+  tableFilter: {
+    exclude: ['adonis_schema', 'adonis_schema_versions'],
+  },
+  withTimestamps: true,
+  withSoftDelete: false,
+})

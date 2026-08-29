@@ -1,6 +1,6 @@
 import type { ReliesesConfig } from './types.js'
 
-// Default values applied when user config is partial.
+// Default values applied when the user config is partial.
 const defaults: ReliesesConfig = {
   outputDir: 'app/models',
   connection: 'default',

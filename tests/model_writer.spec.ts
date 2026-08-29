@@ -137,12 +137,31 @@ test.group('ModelWriter', () => {
       assert.include(baseContent, 'declare tags: ManyToMany<typeof Tag>')
 
       // Remote (non-inspected) table: typed as any with a comment.
-      assert.include(baseContent, '// Table distante non inspectée: missing')
+      assert.include(baseContent, '// Remote table not inspected: missing')
       assert.include(baseContent, 'declare others: HasMany<any>')
 
       // Child stays minimal and extends the base.
       const childContent = readFileSync(path.join(dir, 'app/models/Post.ts'), 'utf-8')
       assert.include(childContent, 'extends PostBase')
+    } finally {
+      process.chdir(prev)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  test('render() returns content without writing files (dry-run)', async ({ assert }) => {
+    const dir = tmpDir()
+    const prev = process.cwd()
+    process.chdir(dir)
+    try {
+      const writer = new ModelWriter({ outputDir: 'app/models' })
+      const rendered = writer.render('students', mapped)
+
+      // Aucun fichier ne doit être créé sur le disque.
+      assert.isFalse(existsSync(path.join(dir, 'app/models/Student.ts')))
+      assert.include(rendered.baseContent, 'export default class Student extends BaseModel')
+      assert.equal(rendered.modelName, 'Student')
+      assert.equal(rendered.basePath, path.join(dir, 'app/models/Student.ts'))
     } finally {
       process.chdir(prev)
       rmSync(dir, { recursive: true, force: true })
