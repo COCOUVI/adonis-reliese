@@ -58,7 +58,7 @@ export class RelationDetector {
         }
       }
 
-      // hasMany / hasOne — every incoming FK means a child references this table.
+      // hasMany / hasOne  every incoming FK means a child references this table.
       for (const { fromTable, fk } of refsToTable.get(table) ?? []) {
         if (pivots.has(fromTable)) continue
         const isUnique = fk.isUnique === true
