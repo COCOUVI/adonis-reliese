@@ -2,8 +2,8 @@ import db from '@adonisjs/lucid/services/db'
 import type { Knex } from 'knex'
 import type { ColumnDef, ForeignKeyDef, SchemaInspector } from '../types.js'
 
-// MySQL / MariaDB inspector: queries information_schema with
-// TABLE_SCHEMA = DATABASE() to target the current database.
+// Inspecteur MySQL / MariaDB : interroge information_schema avec
+// TABLE_SCHEMA = DATABASE() pour cibler la base courante.
 export class MysqlInspector implements SchemaInspector {
   #knex: Knex
 

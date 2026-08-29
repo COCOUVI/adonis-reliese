@@ -6,7 +6,7 @@ export interface NamingStrategy {
   relationName(table: string, type: string): string
 }
 
-// ── Package config ──────────────────────────────────────
+// ── Package configuration ───────────────────────────────
 
 export interface ReliesesConfig {
   outputDir: string
@@ -17,15 +17,15 @@ export interface ReliesesConfig {
   }
   withTimestamps: boolean
   withSoftDelete: boolean
-  // When true, each table generates a always-regenerated `base/` file plus a
-  // child file created only once (Laravel Reliese `base_files` parity).
+  // When true, each table generates a base/ file always regenerated
+  // plus a child file created only once.
   withBaseFiles: boolean
   namingStrategy?: NamingStrategy
 }
 
-// ── Schema inspection ───────────────────────────────────
+// ── Schema inspection ─────────────────────────────────
 
-// A single column extracted from the database.
+// A column extracted from the database.
 export interface ColumnDef {
   name: string
   sqlType: string
@@ -35,27 +35,26 @@ export interface ColumnDef {
   hasDefault: boolean
 }
 
-// A single foreign key constraint.
+// A foreign key constraint.
 export interface ForeignKeyDef {
   column: string
   foreignTable: string
   foreignColumn: string
   // True when the FK column carries a UNIQUE index. Used by the
-  // RelationDetector to decide between `hasOne` and `hasMany`.
+  // RelationDetector to choose between `hasOne` and `hasMany`.
   isUnique?: boolean
 }
 
-// Common interface all inspectors must implement
-// (PostgreSQL, MySQL, SQLite…).
+// Common interface for all inspectors (PostgreSQL, MySQL, SQLite...).
 export interface SchemaInspector {
   getTables(): Promise<string[]>
   getColumns(table: string): Promise<ColumnDef[]>
   getForeignKeys(table: string): Promise<ForeignKeyDef[]>
 }
 
-// ── Type mapping ────────────────────────────────────────
+// ── Type mapping ───────────────────────────────────────
 
-// A single entry in the static type map.
+// An entry of the static mapping table.
 export interface MappedType {
   tsType: string
   decorator: string
@@ -72,7 +71,7 @@ export interface MappedColumn {
   decorator: string
 }
 
-// Result of the full TypeMapper.map() call.
+// Result of a full TypeMapper.map() call.
 export interface TypeMapperOutput {
   columns: MappedColumn[]
   needsDateTimeImport: boolean
@@ -83,41 +82,45 @@ export interface TypeMapperOutput {
 
 export type RelationType = 'belongsTo' | 'hasMany' | 'hasOne' | 'manyToMany'
 
-// A relation inferred for a given model. Consumed by the ModelWriter
-// (Feature 7) to emit the matching Lucid decorators.
+// Relation inferred for a given model. Consumed by the ModelWriter
+// (Feature 7) to emit the corresponding Lucid decorators.
 export interface RelationDef {
   type: RelationType
   // PascalCase model name of the related table (e.g. `User`).
   targetModel: string
   // Raw table name of the related table (used to resolve the import path).
   targetTable: string
-  // camelCase property name used on the model (e.g. `user`, `posts`).
+  // camelCase property name used on the model (e.g. user, posts).
   propertyName: string
-  // Only for manyToMany: the junction table name.
+  // Only for manyToMany: name of the join table.
   pivotTable?: string
-  // True when the related table was not part of the inspected tables.
+  // True when the related table is not among the inspected tables.
   isRemoteMissing?: boolean
 }
 
-// Schema data for a single table, as consumed by the RelationDetector.
+// Schema data for a table, as consumed by the RelationDetector.
 export interface TableSchema {
   columns: ColumnDef[]
   foreignKeys: ForeignKeyDef[]
 }
 
-// ── Model writer ────────────────────────────────────────
+// ── Model generator ───────────────────────────────────
 
 export type WriteStatus = 'created' | 'skipped' | 'error'
 
-// Result of a single ModelWriter.write() call. In default mode (no base files)
-// the single model file is reported through `baseStatus` / `basePath`, and
-// `childStatus` is `'skipped'`. In `base_files` mode both the always-regenerated
-// base file and the child file (created once) are reported.
+// Result of a ModelWriter.write() (or render()) call. In default mode
+// (without base_files) the single model file is reported via `baseStatus` /
+// `basePath`, and `childStatus` is `'skipped'`. In base_files mode, the
+// base file (always regenerated) and the child file (created once) are
+// both reported. `baseContent` / `childContent` are populated by
+// `render()` (used by --dry-run) but absent after an actual write.
 export interface WriteResult {
   modelName: string
   basePath: string
   childPath: string
   baseStatus: WriteStatus
   childStatus: WriteStatus
+  baseContent?: string
+  childContent?: string
   error?: string
 }

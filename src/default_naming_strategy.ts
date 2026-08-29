@@ -65,7 +65,7 @@ function snakeToPascal(s: string): string {
     .join('')
 }
 
-// Very small English pluralizer, enough for typical table names.
+// Small pluralizer, sufficient for common table names.
 function pluralizePascal(pascal: string): string {
   if (pascal.length === 0) return pascal
   const lower = pascal.toLowerCase()
@@ -79,7 +79,7 @@ function pluralizePascal(pascal: string): string {
   return `${pascal}s`
 }
 
-// Inverse of pluralizePascal, enough for typical table names.
+// Inverse of pluralizePascal, sufficient for common table names.
 function singularizePascal(pascal: string): string {
   if (pascal.length === 0) return pascal
   const lower = pascal.toLowerCase()
@@ -105,7 +105,7 @@ function snakeToCamel(s: string): string {
   return escapeReserved(camel)
 }
 
-// Default naming strategy used when the user does not provide a custom one.
+// Default naming strategy used when the user does not provide one.
 export class DefaultNamingStrategy implements NamingStrategy {
   modelName(table: string): string {
     return singularizePascal(snakeToPascal(table))
