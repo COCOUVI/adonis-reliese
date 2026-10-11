@@ -1,13 +1,6 @@
 import { test } from '@japa/runner'
-import type { Knex } from 'knex'
 import { PgInspector } from '../src/inspectors/pg_inspector.js'
-
-// Minimal knex stub returning pg-shaped results ({ rows }).
-function fakeKnex(responder: (sql: string, bindings: unknown[]) => unknown): Knex {
-  return {
-    raw: (sql: string, bindings: unknown[]) => Promise.resolve(responder(sql, bindings)),
-  } as unknown as Knex
-}
+import { fakeKnex } from './helpers.js'
 
 test.group('PgInspector', () => {
   test('getTables lists BASE TABLE names from the public schema', async ({ assert }) => {

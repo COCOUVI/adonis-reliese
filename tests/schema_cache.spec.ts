@@ -1,15 +1,9 @@
 import { test } from '@japa/runner'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { SCHEMA_CACHE_PATH, SchemaCache, hashConnection } from '../src/schema_cache.js'
 import type { TableSchema } from '../src/types.js'
-
-function tmpDir(): string {
-  const dir = path.join(os.tmpdir(), 'reliese-cache-' + Math.random().toString(36).slice(2))
-  mkdirSync(dir, { recursive: true })
-  return dir
-}
+import { tmpDir } from './helpers.js'
 
 function tablesData(): Map<string, TableSchema> {
   return new Map([
@@ -58,7 +52,7 @@ function tablesData(): Map<string, TableSchema> {
 
 test.group('SchemaCache', () => {
   test('save then load round-trips the schema', async ({ assert }) => {
-    const dir = tmpDir()
+    const dir = tmpDir('reliese-cache')
     try {
       await SchemaCache.save(tablesData(), 'default', dir)
       const loaded = await SchemaCache.load('default', dir)
@@ -71,7 +65,7 @@ test.group('SchemaCache', () => {
   })
 
   test('save creates the .adonis directory', async ({ assert }) => {
-    const dir = tmpDir()
+    const dir = tmpDir('reliese-cache')
     try {
       await SchemaCache.save(tablesData(), 'default', dir)
       assert.isTrue(existsSync(path.join(dir, SCHEMA_CACHE_PATH)))
@@ -81,7 +75,7 @@ test.group('SchemaCache', () => {
   })
 
   test('load returns null when the cache file is missing', async ({ assert }) => {
-    const dir = tmpDir()
+    const dir = tmpDir('reliese-cache')
     try {
       assert.isNull(await SchemaCache.load('default', dir))
     } finally {
@@ -90,7 +84,7 @@ test.group('SchemaCache', () => {
   })
 
   test('load returns null when the connection changed', async ({ assert }) => {
-    const dir = tmpDir()
+    const dir = tmpDir('reliese-cache')
     try {
       await SchemaCache.save(tablesData(), 'default', dir)
       assert.isNull(await SchemaCache.load('other', dir))
@@ -100,7 +94,7 @@ test.group('SchemaCache', () => {
   })
 
   test('load returns null for corrupt JSON', async ({ assert }) => {
-    const dir = tmpDir()
+    const dir = tmpDir('reliese-cache')
     try {
       mkdirSync(path.join(dir, '.adonis'), { recursive: true })
       writeFileSync(path.join(dir, SCHEMA_CACHE_PATH), '{ not json', 'utf-8')
@@ -111,7 +105,7 @@ test.group('SchemaCache', () => {
   })
 
   test('load returns null for foreign JSON and outdated versions', async ({ assert }) => {
-    const dir = tmpDir()
+    const dir = tmpDir('reliese-cache')
     try {
       mkdirSync(path.join(dir, '.adonis'), { recursive: true })
       const dest = path.join(dir, SCHEMA_CACHE_PATH)
@@ -137,7 +131,7 @@ test.group('SchemaCache', () => {
   })
 
   test('load returns null when the stored hash was tampered with', async ({ assert }) => {
-    const dir = tmpDir()
+    const dir = tmpDir('reliese-cache')
     try {
       await SchemaCache.save(tablesData(), 'default', dir)
       const dest = path.join(dir, SCHEMA_CACHE_PATH)

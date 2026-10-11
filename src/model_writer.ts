@@ -108,7 +108,7 @@ export class ModelWriter {
     childContent?: string
   } {
     const modelName = this.#strategy.modelName(table)
-    const fileName = modelName
+    const fileName = this.#strategy.fileName(table)
 
     const childPath = path.join(process.cwd(), this.#config.outputDir, `${fileName}.ts`)
     const basePath = this.#config.withBaseFiles
@@ -178,7 +178,7 @@ export class ModelWriter {
       if (!rel.isRemoteMissing) {
         modelImports.set(
           rel.targetModel,
-          `import ${rel.targetModel} from '#models/${rel.targetModel}'`
+          `import ${rel.targetModel} from '#models/${this.#strategy.fileName(rel.targetTable)}'`
         )
       }
     }

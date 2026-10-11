@@ -1,15 +1,9 @@
 import { test } from '@japa/runner'
-import { existsSync, readFileSync, writeFileSync, rmSync, mkdirSync } from 'node:fs'
-import os from 'node:os'
+import { existsSync, readFileSync, writeFileSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import { ModelWriter } from '../src/model_writer.js'
 import type { RelationDef, TypeMapperOutput } from '../src/types.js'
-
-function tmpDir(): string {
-  const dir = path.join(os.tmpdir(), 'reliese-mw-' + Math.random().toString(36).slice(2))
-  mkdirSync(dir, { recursive: true })
-  return dir
-}
+import { tmpDir } from './helpers.js'
 
 const mapped: TypeMapperOutput = {
   columns: [
@@ -29,7 +23,7 @@ const mapped: TypeMapperOutput = {
 
 test.group('ModelWriter', () => {
   test('default mode always overwrites (no skip, no --force)', async ({ assert }) => {
-    const dir = tmpDir()
+    const dir = tmpDir('reliese-mw')
     const prev = process.cwd()
     process.chdir(dir)
     try {
@@ -39,7 +33,7 @@ test.group('ModelWriter', () => {
       assert.equal(r1.childStatus, 'skipped')
       assert.equal(r1.basePath, r1.childPath)
 
-      const filePath = path.join(dir, 'app/models/Student.ts')
+      const filePath = path.join(dir, 'app/models/student.ts')
       writeFileSync(filePath, '// MANUAL EDIT')
 
       await writer.write('students', mapped)
@@ -53,7 +47,7 @@ test.group('ModelWriter', () => {
   })
 
   test('base_files mode: base regenerated, child created once', async ({ assert }) => {
-    const dir = tmpDir()
+    const dir = tmpDir('reliese-mw')
     const prev = process.cwd()
     process.chdir(dir)
     try {
@@ -63,8 +57,8 @@ test.group('ModelWriter', () => {
       assert.equal(r1.baseStatus, 'created')
       assert.equal(r1.childStatus, 'created')
 
-      const basePath = path.join(dir, 'app/models/base/Student.ts')
-      const childPath = path.join(dir, 'app/models/Student.ts')
+      const basePath = path.join(dir, 'app/models/base/student.ts')
+      const childPath = path.join(dir, 'app/models/student.ts')
       assert.isTrue(existsSync(basePath))
       assert.isTrue(existsSync(childPath))
 
@@ -72,6 +66,7 @@ test.group('ModelWriter', () => {
       assert.include(baseContent, 'class StudentBase extends BaseModel')
       const childContent = readFileSync(childPath, 'utf-8')
       assert.include(childContent, 'extends StudentBase')
+      assert.include(childContent, "from './base/student.js'")
 
       writeFileSync(childPath, '// CUSTOM RELATION' + '\n')
       const r2 = await writer.write('students', mapped)
@@ -87,7 +82,7 @@ test.group('ModelWriter', () => {
   })
 
   test('emits relation decorators and cross-model imports', async ({ assert }) => {
-    const dir = tmpDir()
+    const dir = tmpDir('reliese-mw')
     const prev = process.cwd()
     process.chdir(dir)
     try {
@@ -117,7 +112,7 @@ test.group('ModelWriter', () => {
       ]
       await writer.write('posts', mapped, relations)
 
-      const baseContent = readFileSync(path.join(dir, 'app/models/base/Post.ts'), 'utf-8')
+      const baseContent = readFileSync(path.join(dir, 'app/models/base/post.ts'), 'utf-8')
       assert.include(
         baseContent,
         "import { BaseModel, column, belongsTo, hasMany, manyToMany } from '@adonisjs/lucid/orm'"
@@ -126,9 +121,9 @@ test.group('ModelWriter', () => {
         baseContent,
         "import type { BelongsTo, HasMany, ManyToMany } from '@adonisjs/lucid/types/relations'"
       )
-      assert.include(baseContent, "import User from '#models/User'")
-      assert.include(baseContent, "import Comment from '#models/Comment'")
-      assert.include(baseContent, "import Tag from '#models/Tag'")
+      assert.include(baseContent, "import User from '#models/user'")
+      assert.include(baseContent, "import Comment from '#models/comment'")
+      assert.include(baseContent, "import Tag from '#models/tag'")
 
       assert.include(baseContent, '@belongsTo(() => User)')
       assert.include(baseContent, 'declare user: BelongsTo<typeof User>')
@@ -141,7 +136,7 @@ test.group('ModelWriter', () => {
       assert.include(baseContent, 'declare others: HasMany<any>')
 
       // Child stays minimal and extends the base.
-      const childContent = readFileSync(path.join(dir, 'app/models/Post.ts'), 'utf-8')
+      const childContent = readFileSync(path.join(dir, 'app/models/post.ts'), 'utf-8')
       assert.include(childContent, 'extends PostBase')
     } finally {
       process.chdir(prev)
@@ -150,18 +145,18 @@ test.group('ModelWriter', () => {
   })
 
   test('render() returns content without writing files (dry-run)', async ({ assert }) => {
-    const dir = tmpDir()
+    const dir = tmpDir('reliese-mw')
     const prev = process.cwd()
     process.chdir(dir)
     try {
       const writer = new ModelWriter({ outputDir: 'app/models' })
       const rendered = writer.render('students', mapped)
 
-      // Aucun fichier ne doit être créé sur le disque.
-      assert.isFalse(existsSync(path.join(dir, 'app/models/Student.ts')))
+      // No file is written to disk.
+      assert.isFalse(existsSync(path.join(dir, 'app/models/student.ts')))
       assert.include(rendered.baseContent, 'export default class Student extends BaseModel')
       assert.equal(rendered.modelName, 'Student')
-      assert.equal(rendered.basePath, path.join(dir, 'app/models/Student.ts'))
+      assert.equal(rendered.basePath, path.join(dir, 'app/models/student.ts'))
     } finally {
       process.chdir(prev)
       rmSync(dir, { recursive: true, force: true })

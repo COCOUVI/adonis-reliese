@@ -1,17 +1,6 @@
 import { test } from '@japa/runner'
-import type { Knex } from 'knex'
 import { SqliteInspector } from '../src/inspectors/sqlite_inspector.js'
-
-// Builds a minimal knex stub routing raw SQL to a responder,
-// while recording every statement for escaping assertions.
-function fakeKnex(responder: (sql: string) => unknown, seen: string[] = []): Knex {
-  return {
-    raw: (sql: string) => {
-      seen.push(sql)
-      return Promise.resolve(responder(sql))
-    },
-  } as unknown as Knex
-}
+import { fakeKnex } from './helpers.js'
 
 function tableListRows() {
   return [

@@ -1,130 +1,134 @@
-# AdonisJS package starter kit
+# adonis-reliese
 
-> [!note]
-> This starter kit targets **AdonisJS v7**
+Generate AdonisJS Lucid models from your existing database schema — columns, types, timestamps and relations, all inferred automatically.
 
-> A boilerplate for creating AdonisJS packages
+## Requirements
 
-This repo provides you with a starting point for creating AdonisJS packages. Of course, you can create a package from scratch with your folder structure and workflow. However, using this starter kit can speed up the process, as you have fewer decisions to make.
+- AdonisJS v7 with `@adonisjs/lucid` installed
+- Node.js >= 24
+- A **SQLite** (`sqlite3`, `better-sqlite3`, `libsql`) or **MySQL / MariaDB** database. PostgreSQL inspection exists but is on hold until it gets live verification.
 
-## Setup
+## Installation
 
-- Clone the repo on your computer, or use `giget` to download this repo without the Git history.
-  ```sh
-  npx giget@latest gh:adonisjs/pkg-starter-kit
-  ```
-- Install dependencies.
-- Update the `package.json` file and define the `name`, `description`, `keywords`, and `author` properties.
-- The repo is configured with an MIT license. Feel free to change that if you are not publishing under the MIT license.
-
-## Folder structure
-
-The starter kit mimics the folder structure of the official packages. Feel free to rename files and folders as per your requirements.
-
-```
-├── providers
-├── src
-├── bin
-├── stubs
-├── configure.ts
-├── index.ts
-├── LICENSE.md
-├── package.json
-├── README.md
-├── tsconfig.json
-├── tsnode.esm.js
+```sh
+npm i adonis-reliese
+node ace configure adonis-reliese
 ```
 
-- The `configure.ts` file exports the `configure` hook to configure the package using the `node ace configure` command.
-- The `index.ts` file is the main entry point of the package.
-- The `tsnode.esm.js` file runs TypeScript code using TS-Node + SWC. Please read the code comment in this file to learn more.
-- The `bin` directory contains the entry point file to run Japa tests.
-- Learn more about [the `providers` directory](./providers/README.md).
-- Learn more about [the `src` directory](./src/README.md).
-- Learn more about [the `stubs` directory](./stubs/README.md).
+This registers the commands and the provider, then creates `config/reliese.ts`. To scaffold the config file alone:
 
-### File system naming convention
+```sh
+node ace reliese:install [--force]
+```
 
-We use `snake_case` naming conventions for the file system. The rule is enforced using ESLint. However, turn off the rule and use your preferred naming conventions.
+## Configuration
 
-## Peer dependencies
+```ts
+import { defineConfig } from 'adonis-reliese'
 
-The starter kit has a peer dependency on `@adonisjs/core@6`. Since you are creating a package for AdonisJS, you must make it against a specific version of the framework core.
+export default defineConfig({
+  outputDir: 'app/models',
+  connection: 'default',
+  tableFilter: {
+    include: [], // empty = all tables; supports 'prefix*' wildcards
+    exclude: ['adonis_schema', 'adonis_schema_versions'],
+  },
+  withTimestamps: true, // created_at/updated_at → @column.dateTime with autoCreate/autoUpdate
+  withSoftDelete: false, // deleted_at → @column.dateTime() (see note below)
+  withBaseFiles: false, // true = base/ file regenerated + child file created once (Reliese style)
+})
+```
 
-If your package needs Lucid to be functional, you may install `@adonisjs/lucid` as a development dependency and add it to the list of `peerDependencies`.
+> **Soft deletes:** Lucid v7 ships no `SoftDeletes` mixin, so `withSoftDelete` only maps the `deleted_at` column to `@column.dateTime()`. Add your own scopes or a custom base model for the filtering behavior.
 
-As a rule of thumb, packages installed in the user application should be part of the `peerDependencies` of your package and not the main dependency.
+## Usage
 
-For example, if you install `@adonisjs/core` as a main dependency, then essentially, you are importing a separate copy of `@adonisjs/core` and not sharing the one from the user application. Here is a great article explaining [peer dependencies](https://blog.bitsrc.io/understanding-peer-dependencies-in-javascript-dbdb4ab5a7be).
+```sh
+node ace reliese:models
+```
 
-## Published files
+One model file per table is written to `outputDir`, using the AdonisJS convention (`users` → `app/models/user.ts`, class `User`). **Existing files are overwritten**, except the child file in `withBaseFiles` mode, which is created once and never regenerated.
 
-Instead of publishing your repo's source code to npm, you must cherry-pick files and folders to publish only the required files.
+| Flag | Effect |
+|------|--------|
+| `--table=users` | Generate a single table only (reads the cache, never rewrites it) |
+| `--connection=secondary` | Override the Lucid connection from the config |
+| `--dry-run` | Print the generated models without writing files |
+| `--no-cache` | Ignore the schema cache and re-inspect the database |
 
-The cherry-picking uses the `files` property inside the `package.json` file. By default, we publish the following files and folders.
+## Example
 
-```json
-{
-  "files": [
-    "build/src",
-    "build/providers",
-    "build/stubs",
-    "build/index.d.ts",
-    "build/index.js",
-    "build/configure.d.ts",
-    "build/configure.js"
-  ]
+From a `users` table with `posts.user_id → users.id`, you get:
+
+```ts
+// app/models/user.ts
+import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
+import type { HasMany } from '@adonisjs/lucid/types/relations'
+import { DateTime } from 'luxon'
+import Post from '#models/post'
+
+export default class User extends BaseModel {
+  @column({ isPrimary: true })
+  declare id: number
+
+  @column()
+  declare name: string
+
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+
+  @hasMany(() => Post)
+  declare posts: HasMany<typeof Post>
 }
 ```
 
-If you create additional folders or files, mention them inside the `files` array.
+Relations are inferred from foreign keys: outgoing FK → `belongsTo`, incoming FKs → `hasMany` (`hasOne` when the FK column is unique), and a table with exactly two FKs and no extra columns → `manyToMany` on both sides via `pivotTable`. Relation targets outside the inspected tables are typed `any` with an explanatory comment.
 
-## Exports
+## Schema cache
 
-[Node.js Subpath exports](https://nodejs.org/api/packages.html#subpath-exports) allows you to define the exports of your package regardless of the folder structure. This starter kit defines the following exports.
+After a successful full inspection, the schema is saved to `.adonis/reliese-schema.json` and reused on the next runs without touching the database. The cache is invalidated automatically when the connection changes. Schema changes require one `node ace reliese:models --no-cache` run to refresh it.
 
-```json
-{
-  "exports": {
-    ".": "./build/index.js",
-    "./types": "./build/src/types.js"
-  }
+## Custom naming
+
+```ts
+import { defineConfig } from 'adonis-reliese'
+import type { NamingStrategy } from 'adonis-reliese'
+
+class MyStrategy implements NamingStrategy {
+  modelName(table: string): string { /* users → User */ }
+  propertyName(column: string): string { /* user_id → userId */ }
+  relationName(table: string, type: string): string { /* ... */ }
+  fileName(table: string): string { /* users → user */ }
 }
+
+export default defineConfig({ namingStrategy: new MyStrategy() })
 ```
 
-- The dot `.` export is the main export.
-- The `./types` exports all the types defined inside the `./build/src/types.js` file (the compiled output).
+## Troubleshooting
 
-Feel free to change the exports as per your requirements.
+| Error | Fix |
+|-------|-----|
+| `Run 'node ace reliese:install' first` | `config/reliese.ts` is missing — run the install command |
+| `Unsupported dialect: X` | Only SQLite and MySQL connections are supported in v1 |
+| Stale models after a migration | Run once with `--no-cache` to refresh `.adonis/reliese-schema.json` |
+| `unknown` type with a TODO comment | The SQL type has no mapping yet — adjust the type or open an issue |
 
-## Testing
+## Development
 
-We configure the [Japa test runner](https://japa.dev/) with this starter kit. Japa is used in AdonisJS applications as well. Just run one of the following commands to execute tests.
+```sh
+npm run quick:test   # tests only
+npm test             # lint + tests + coverage
+npm run typecheck
+npm run build
+```
 
-- `npm run test`: This command will first lint the code using ESlint and then run tests and report the test coverage using [c8](https://github.com/bcoe/c8).
-- `npm run quick:test`: Runs only the tests without linting or coverage reporting.
+Live SQLite tests run via `better-sqlite3` (dev dependency). MySQL is covered by unit tests; verify against a live server before release:
 
-The starter kit also has a Github workflow file to run tests using Github Actions. The tests are executed against `Node.js 20.x` and `Node.js 21.x` versions on both Linux and Windows. Feel free to edit the workflow file in the `.github/workflows` directory.
+```sh
+docker run -d -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=reliese_test -p 3306:3306 mysql:8
+```
 
-## TypeScript workflow
-
-- The starter kit uses [tsc](https://www.typescriptlang.org/docs/handbook/compiler-options.html) for compiling the TypeScript to JavaScript when publishing the package.
-- [TS-Node](https://typestrong.org/ts-node/) and [SWC](https://swc.rs/) are used to run tests without compiling the source code.
-- The `tsconfig.json` file is extended from [`@adonisjs/tsconfig`](https://github.com/adonisjs/tooling-config/tree/main/packages/typescript-config) and uses the `NodeNext` module system. Meaning the packages are written using ES modules.
-- You can perform type checking without compiling the source code using the `npm run type check` script.
-
-Feel free to explore the `tsconfig.json` file for all the configured options.
-
-## ESLint and Prettier setup
-
-The starter kit configures ESLint and Prettier
-using our [shared config](https://github.com/adonisjs/tooling-config/tree/main/packages).
-ESLint configuration is stored within the `eslint.config.js` file.
-Prettier configuration is stored within the `package.json` file.
-Feel free to change the configuration, use custom plugins, or remove both tools altogether.
-
-## Using Stale bot
-
-The [Stale bot](https://github.com/apps/stale) is a Github application that automatically marks issues and PRs as stale and closes after a specific duration of inactivity.
-
-Feel free to delete the `.github/stale.yml` and `.github/lock.yml` files if you decide not to use the Stale bot.
+MIT License.

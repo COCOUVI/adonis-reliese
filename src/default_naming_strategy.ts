@@ -1,5 +1,17 @@
 import type { NamingStrategy } from './types.js'
 
+// Nouns with identical singular and plural forms.
+const UNCOUNTABLE = new Set([
+  'news',
+  'series',
+  'species',
+  'sheep',
+  'fish',
+  'deer',
+  'equipment',
+  'information',
+])
+
 const RESERVED_TS_KEYWORDS = new Set([
   'break',
   'case',
@@ -69,6 +81,8 @@ function snakeToPascal(s: string): string {
 function pluralizePascal(pascal: string): string {
   if (pascal.length === 0) return pascal
   const lower = pascal.toLowerCase()
+  // Uncountable nouns are invariant (news → news, never "new").
+  if (UNCOUNTABLE.has(lower)) return pascal
   // Already plural (e.g. "Posts" coming from a "posts" table): leave as-is.
   if (lower.endsWith('s')) return pascal
   if (lower.endsWith('x') || lower.endsWith('z')) return `${pascal}es`
@@ -83,6 +97,7 @@ function pluralizePascal(pascal: string): string {
 function singularizePascal(pascal: string): string {
   if (pascal.length === 0) return pascal
   const lower = pascal.toLowerCase()
+  if (UNCOUNTABLE.has(lower)) return pascal
   if (lower.endsWith('ies')) return `${pascal.slice(0, -3)}y`
   if (
     lower.endsWith('ses') ||
@@ -121,5 +136,10 @@ export class DefaultNamingStrategy implements NamingStrategy {
       return pluralizePascal(pascal)
     }
     return singularizePascal(pascal)
+  }
+
+  fileName(table: string): string {
+    const singular = singularizePascal(snakeToPascal(table.toLowerCase()))
+    return singular.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase()
   }
 }

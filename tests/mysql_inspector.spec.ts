@@ -1,19 +1,17 @@
 import { test } from '@japa/runner'
-import type { Knex } from 'knex'
 import { MysqlInspector } from '../src/inspectors/mysql_inspector.js'
+import { fakeKnex } from './helpers.js'
 
-// Minimal knex stub returning mysql-shaped results ([rows, fields]).
-function fakeKnex(responder: (sql: string, bindings: unknown[]) => unknown): Knex {
-  return {
-    raw: (sql: string, bindings: unknown[]) => Promise.resolve([responder(sql, bindings), []]),
-  } as unknown as Knex
+// Mysql returns [rows, fields] from knex.raw().
+function mysqlRows<T>(rows: T[]): unknown {
+  return [rows, []]
 }
 
 test.group('MysqlInspector', () => {
   test('getTables lists BASE TABLE names from the current database', async ({ assert }) => {
     const inspector = new MysqlInspector(
       'default',
-      fakeKnex(() => [{ TABLE_NAME: 'users' }, { TABLE_NAME: 'posts' }])
+      fakeKnex(() => mysqlRows([{ TABLE_NAME: 'users' }, { TABLE_NAME: 'posts' }]))
     )
 
     assert.deepEqual(await inspector.getTables(), ['users', 'posts'])
@@ -24,36 +22,38 @@ test.group('MysqlInspector', () => {
   }) => {
     const inspector = new MysqlInspector(
       'default',
-      fakeKnex(() => [
-        {
-          COLUMN_NAME: 'id',
-          DATA_TYPE: 'int',
-          IS_NULLABLE: 'NO',
-          COLUMN_DEFAULT: null,
-          COLUMN_KEY: 'PRI',
-        },
-        {
-          COLUMN_NAME: 'name',
-          DATA_TYPE: 'varchar(255)',
-          IS_NULLABLE: 'NO',
-          COLUMN_DEFAULT: null,
-          COLUMN_KEY: '',
-        },
-        {
-          COLUMN_NAME: 'is_active',
-          DATA_TYPE: 'tinyint(1)',
-          IS_NULLABLE: 'YES',
-          COLUMN_DEFAULT: null,
-          COLUMN_KEY: '',
-        },
-        {
-          COLUMN_NAME: 'score',
-          DATA_TYPE: 'decimal(10,2)',
-          IS_NULLABLE: 'YES',
-          COLUMN_DEFAULT: '0.00',
-          COLUMN_KEY: '',
-        },
-      ])
+      fakeKnex(() =>
+        mysqlRows([
+          {
+            COLUMN_NAME: 'id',
+            DATA_TYPE: 'int',
+            IS_NULLABLE: 'NO',
+            COLUMN_DEFAULT: null,
+            COLUMN_KEY: 'PRI',
+          },
+          {
+            COLUMN_NAME: 'name',
+            DATA_TYPE: 'varchar(255)',
+            IS_NULLABLE: 'NO',
+            COLUMN_DEFAULT: null,
+            COLUMN_KEY: '',
+          },
+          {
+            COLUMN_NAME: 'is_active',
+            DATA_TYPE: 'tinyint(1)',
+            IS_NULLABLE: 'YES',
+            COLUMN_DEFAULT: null,
+            COLUMN_KEY: '',
+          },
+          {
+            COLUMN_NAME: 'score',
+            DATA_TYPE: 'decimal(10,2)',
+            IS_NULLABLE: 'YES',
+            COLUMN_DEFAULT: '0.00',
+            COLUMN_KEY: '',
+          },
+        ])
+      )
     )
 
     const columns = await inspector.getColumns('users')
@@ -78,12 +78,12 @@ test.group('MysqlInspector', () => {
       'default',
       fakeKnex((sql) => {
         if (sql.includes('KEY_COLUMN_USAGE')) {
-          return [
+          return mysqlRows([
             { COLUMN_NAME: 'user_id', foreign_table: 'users', foreign_column: 'id' },
             { COLUMN_NAME: 'editor_id', foreign_table: 'users', foreign_column: 'id' },
-          ]
+          ])
         }
-        return [{ COLUMN_NAME: 'editor_id' }]
+        return mysqlRows([{ COLUMN_NAME: 'editor_id' }])
       })
     )
 
