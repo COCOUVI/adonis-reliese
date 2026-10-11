@@ -3,10 +3,11 @@ import type { CommandOptions } from '@adonisjs/core/types/ace'
 import { ConfigLoader } from '../config_loader.js'
 import { createInspector } from '../inspectors/index.js'
 import { RelationDetector } from '../relation_detector.js'
+import { SchemaCache } from '../schema_cache.js'
 import { TypeMapper } from '../type_mapper.js'
 import { ModelWriter } from '../model_writer.js'
 import { DefaultNamingStrategy } from '../default_naming_strategy.js'
-import type { ColumnDef, ReliesesConfig, TableSchema } from '../types.js'
+import type { ColumnDef, ReliesesConfig, SchemaInspector, TableSchema } from '../types.js'
 
 /**
  * Main command: orchestrates the full pipeline
@@ -28,6 +29,9 @@ export default class RelieseModels extends BaseCommand {
 
   @flags.boolean({ description: 'Print the generated content without writing files' })
   declare dryRun: boolean | undefined
+
+  @flags.boolean({ description: 'Skip the schema cache and inspect the database' })
+  declare noCache: boolean | undefined
 
   // Applies the config tableFilter (include/exclude, with '*' prefix wildcard).
   #filterTables(tables: string[], config: ReliesesConfig): string[] {
@@ -52,9 +56,18 @@ export default class RelieseModels extends BaseCommand {
     const config = await ConfigLoader.load()
     const connection = this.connection ?? config.connection ?? 'default'
     const naming = config.namingStrategy ?? new DefaultNamingStrategy()
-    const inspector = createInspector(connection)
 
-    let tables = await inspector.getTables()
+    let tables: string[]
+    let inspector: SchemaInspector | null = null
+    const cached = this.noCache ? null : await SchemaCache.load(connection)
+
+    if (cached) {
+      this.logger.info('Using cached schema — pass --no-cache to re-inspect the database')
+      tables = [...cached.keys()]
+    } else {
+      inspector = createInspector(connection)
+      tables = await inspector.getTables()
+    }
     tables = this.#filterTables(tables, config)
 
     if (this.table) {
@@ -66,16 +79,28 @@ export default class RelieseModels extends BaseCommand {
       tables = [target]
     }
 
-    // Preliminary inspection: columns + foreign keys for each table.
+    // Preliminary inspection: from the cache when available, else the database.
     const columnsByTable = new Map<string, ColumnDef[]>()
     const tablesData = new Map<string, TableSchema>()
     for (const table of tables) {
+      const hit = cached?.get(table)
+      if (hit) {
+        columnsByTable.set(table, hit.columns)
+        tablesData.set(table, hit)
+        continue
+      }
       const [columns, foreignKeys] = await Promise.all([
-        inspector.getColumns(table),
-        inspector.getForeignKeys(table),
+        inspector!.getColumns(table),
+        inspector!.getForeignKeys(table),
       ])
       columnsByTable.set(table, columns)
       tablesData.set(table, { columns, foreignKeys })
+    }
+
+    // Persist the full schema for the next run. Single-table runs are
+    // skipped so a partial inspection never overwrites the cache.
+    if (!cached && !this.table) {
+      await SchemaCache.save(tablesData, connection)
     }
 
     const detector = new RelationDetector(naming)
