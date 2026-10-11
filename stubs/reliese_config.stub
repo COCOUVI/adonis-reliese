@@ -2,7 +2,9 @@ import { defineConfig } from 'adonis-reliese'
 
 export default defineConfig({
   outputDir: 'app/models',
-  connection: 'default',
+  // Lucid connection to inspect. Defaults to the app's primary connection
+  // from config/database.ts — uncomment to use another one.
+  // connection: 'mysql',
   tableFilter: {
     exclude: ['adonis_schema', 'adonis_schema_versions'],
   },

@@ -79,15 +79,15 @@
     }
   },
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   },
   "tsdown": {
     "entry": [
       "./index.ts",
       "./configure.ts",
       "./src/commands/index.ts",
-      "./providers/reliese_provider.ts"
+      "./providers/reliese_provider.ts",
+      "./src/types.ts"
     ],
     "outDir": "./build",
     "clean": true,

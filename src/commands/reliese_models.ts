@@ -1,7 +1,7 @@
 import { BaseCommand, flags } from '@adonisjs/core/ace'
 import type { CommandOptions } from '@adonisjs/core/types/ace'
 import { ConfigLoader } from '../config_loader.js'
-import { createInspector } from '../inspectors/index.js'
+import { createInspector, resolveConnectionName } from '../inspectors/index.js'
 import { RelationDetector } from '../relation_detector.js'
 import { SchemaCache } from '../schema_cache.js'
 import { TypeMapper } from '../type_mapper.js'
@@ -31,7 +31,7 @@ export default class RelieseModels extends BaseCommand {
   declare dryRun: boolean | undefined
 
   @flags.boolean({ description: 'Skip the schema cache and inspect the database' })
-  declare noCache: boolean | undefined
+  declare cache: boolean | undefined
 
   // Applies the config tableFilter (include/exclude, with '*' prefix wildcard).
   #filterTables(tables: string[], config: ReliesesConfig): string[] {
@@ -54,12 +54,12 @@ export default class RelieseModels extends BaseCommand {
 
   async run() {
     const config = await ConfigLoader.load()
-    const connection = this.connection ?? config.connection ?? 'default'
+    const connection = resolveConnectionName(this.connection ?? config.connection)
     const naming = config.namingStrategy ?? new DefaultNamingStrategy()
 
     let tables: string[]
     let inspector: SchemaInspector | null = null
-    const cached = this.noCache ? null : await SchemaCache.load(connection)
+    const cached = this.cache === false ? null : await SchemaCache.load(connection)
 
     if (cached) {
       this.logger.info('Using cached schema — pass --no-cache to re-inspect the database')

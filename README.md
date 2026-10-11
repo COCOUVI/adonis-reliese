@@ -6,7 +6,7 @@ Generate AdonisJS Lucid models from your existing database schema — columns, t
 
 - AdonisJS v7 with `@adonisjs/lucid` installed
 - Node.js >= 24
-- A **SQLite** (`sqlite3`, `better-sqlite3`, `libsql`) or **MySQL / MariaDB** database. PostgreSQL inspection exists but is on hold until it gets live verification.
+- A **MySQL / MariaDB** or **SQLite** (`better-sqlite3`, `sqlite3`, `libsql`) database. PostgreSQL support is planned for v2.
 
 ## Installation
 
@@ -17,11 +17,11 @@ npm i adonis-reliese
 node ace configure adonis-reliese
 ```
 
-The setup command does everything for you:
+The setup command registers the commands and the provider in your app. Then create the config file:
 
-1. Makes the `reliese:models` and `reliese:install` commands available in your app
-2. Registers the package provider
-3. Creates `config/reliese.ts` with sensible defaults (see [Configuration](#configuration))
+```sh
+node ace reliese:install
+```
 
 That's it — you can now run `node ace reliese:models`.
 
@@ -46,7 +46,7 @@ import { defineConfig } from 'adonis-reliese'
 
 export default defineConfig({
   outputDir: 'app/models',
-  connection: 'default',
+  // connection: 'mysql', // defaults to the app's primary Lucid connection
   tableFilter: {
     include: [], // empty = all tables; supports 'prefix*' wildcards
     exclude: ['adonis_schema', 'adonis_schema_versions'],
@@ -56,6 +56,12 @@ export default defineConfig({
   withBaseFiles: false, // true = base/ file regenerated + child file created once (Reliese style)
 })
 ```
+
+Which connection is inspected, in priority order:
+
+1. `--connection=secondary` flag passed to `reliese:models`
+2. `connection` in `config/reliese.ts`
+3. the app's primary connection from `config/database.ts` (zero-config default)
 
 > **Soft deletes:** Lucid v7 ships no `SoftDeletes` mixin, so `withSoftDelete` only maps the `deleted_at` column to `@column.dateTime()`. Add your own scopes or a custom base model for the filtering behavior.
 
@@ -130,7 +136,8 @@ export default defineConfig({ namingStrategy: new MyStrategy() })
 | Error | Fix |
 |-------|-----|
 | `Run 'node ace reliese:install' first` | `config/reliese.ts` is missing — run the install command |
-| `Unsupported dialect: X` | Only SQLite and MySQL connections are supported in v1 |
+| `Cannot connect to unregistered connection X` | No Lucid connection named `X` — omit `connection` to use the app's default, or pass a valid `--connection` |
+| `Unsupported dialect: X` | Only MySQL/MariaDB and SQLite are supported (PostgreSQL planned for v2) |
 | Stale models after a migration | Run once with `--no-cache` to refresh `.adonis/reliese-schema.json` |
 | `unknown` type with a TODO comment | The SQL type has no mapping yet — adjust the type or open an issue |
 
@@ -143,7 +150,7 @@ npm run typecheck
 npm run build
 ```
 
-Live SQLite tests run via `better-sqlite3` (dev dependency). MySQL is covered by unit tests; verify against a live server before release:
+Live SQLite tests run via `better-sqlite3` (dev dependency). MySQL is covered by unit tests — verify against a live server when changing inspectors:
 
 ```sh
 docker run -d -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=reliese_test -p 3306:3306 mysql:8
