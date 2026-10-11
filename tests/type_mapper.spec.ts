@@ -30,19 +30,61 @@ test.group('TypeMapper', () => {
     for (const mapped of mappedTypes([
       'smallint',
       'mediumint',
-      'tinyint',
       'int2',
-      'int8',
+      'int4',
       'serial',
-      'bigserial',
+      'smallserial',
       'real',
       'double',
       'double precision',
-      'decimal',
-      'dec',
       'year',
     ])) {
       assert.strictEqual(mapped.tsType, 'number', mapped.sqlType)
+      assert.strictEqual(mapped.decorator, 'column()', mapped.sqlType)
+    }
+  })
+
+  test('maps bigint aliases to bigint | number (Lucid convention)', ({ assert }) => {
+    for (const mapped of mappedTypes(['int8', 'bigint', 'bigserial'])) {
+      assert.strictEqual(mapped.tsType, 'bigint | number', mapped.sqlType)
+      assert.strictEqual(mapped.decorator, 'column()', mapped.sqlType)
+    }
+  })
+
+  test('maps decimals to string (Lucid convention, no precision loss)', ({ assert }) => {
+    for (const mapped of mappedTypes(['numeric', 'decimal', 'dec', 'decimal(10,2)'])) {
+      assert.strictEqual(mapped.tsType, 'string', mapped.sqlType)
+      assert.strictEqual(mapped.decorator, 'column()', mapped.sqlType)
+    }
+  })
+
+  test('maps json to any, time to string and blobs to Buffer', ({ assert }) => {
+    const byType = Object.fromEntries(
+      mappedTypes(['json', 'jsonb', 'time', 'binary', 'varbinary', 'blob']).map((c) => [
+        c.sqlType,
+        c,
+      ])
+    )
+
+    assert.containsSubset(byType.json, { tsType: 'any', decorator: 'column()' })
+    assert.containsSubset(byType.jsonb, { tsType: 'any', decorator: 'column()' })
+    assert.containsSubset(byType.time, { tsType: 'string', decorator: 'column()' })
+    assert.containsSubset(byType.binary, { tsType: 'Buffer', decorator: 'column()' })
+    assert.containsSubset(byType.varbinary, { tsType: 'Buffer', decorator: 'column()' })
+    assert.containsSubset(byType.blob, { tsType: 'Buffer', decorator: 'column()' })
+  })
+
+  test('hides password behind serializeAs null (Lucid convention)', ({ assert }) => {
+    const mapper = new TypeMapper({ withTimestamps: false, withSoftDelete: false })
+    const [result] = mapper.map([column('varchar', { name: 'password' })]).columns
+
+    assert.strictEqual(result.tsType, 'string')
+    assert.strictEqual(result.decorator, 'column({ serializeAs: null })')
+  })
+
+  test('maps boolean aliases to boolean (incl. MySQL tinyint)', ({ assert }) => {
+    for (const mapped of mappedTypes(['boolean', 'bool', 'tinyint', 'tinyint(1)'])) {
+      assert.strictEqual(mapped.tsType, 'boolean', mapped.sqlType)
       assert.strictEqual(mapped.decorator, 'column()', mapped.sqlType)
     }
   })
@@ -76,10 +118,10 @@ test.group('TypeMapper', () => {
     }
   })
 
-  test('falls back to unknown with a TODO for unmapped types', ({ assert }) => {
-    const [mapped] = mappedTypes(['bytea'])
+  test('falls back to any with a TODO for unmapped types', ({ assert }) => {
+    const [mapped] = mappedTypes(['geometry'])
 
-    assert.strictEqual(mapped.tsType, 'unknown')
-    assert.match(mapped.decorator, /TODO: unmapped SQL type: bytea/)
+    assert.strictEqual(mapped.tsType, 'any')
+    assert.match(mapped.decorator, /TODO: unmapped SQL type: geometry/)
   })
 })

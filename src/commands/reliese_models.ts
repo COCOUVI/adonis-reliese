@@ -1,5 +1,6 @@
 import { BaseCommand, flags } from '@adonisjs/core/ace'
 import type { CommandOptions } from '@adonisjs/core/types/ace'
+import path from 'node:path'
 import { ConfigLoader } from '../config_loader.js'
 import { createInspector, resolveConnectionName } from '../inspectors/index.js'
 import { RelationDetector } from '../relation_detector.js'
@@ -115,8 +116,11 @@ export default class RelieseModels extends BaseCommand {
 
     const stats = { created: 0, skipped: 0, errors: 0 }
     const errorDetails: string[] = []
+    const withBaseFiles = config.withBaseFiles ?? false
 
     const relationsByTable = detector.detect(tablesData)
+
+    this.logger.info(`Reliese · connection "${connection}" · ${tables.length} table(s)`)
 
     for (const table of tables) {
       try {
@@ -141,18 +145,58 @@ export default class RelieseModels extends BaseCommand {
         if (result.baseStatus === 'error') {
           throw new Error(result.error ?? 'Failed to write the base file')
         }
-        if (result.baseStatus === 'created') stats.created++
-        if (result.childStatus === 'created') stats.created++
-        else if (result.childStatus === 'skipped') stats.skipped++
+        if (result.baseStatus === 'created') {
+          stats.created++
+          this.logger.success(`✓ ${this.#displayPath(result.basePath)}`)
+        }
+        if (result.childStatus === 'created') {
+          stats.created++
+          this.logger.success(`✓ ${this.#displayPath(result.childPath)}`)
+        } else if (withBaseFiles && result.childStatus === 'skipped') {
+          // Base-files mode only: the child already exists and is preserved.
+          stats.skipped++
+        }
       } catch (error) {
         stats.errors++
         errorDetails.push(`${table} : ${error instanceof Error ? error.message : String(error)}`)
       }
     }
 
-    this.logger.info(
-      `Done — ${stats.created} created, ${stats.skipped} skipped, ${stats.errors} error(s)`
-    )
-    errorDetails.forEach((detail) => this.logger.error(detail))
+    this.#printSummary(stats, errorDetails, config.outputDir, tables.length)
+  }
+
+  // Shortens an absolute path for display (app/models/user.ts).
+  #displayPath(filePath: string): string {
+    return path.relative(process.cwd(), filePath)
+  }
+
+  // Final report: a clean summary on success, details on failure.
+  #printSummary(
+    stats: { created: number; skipped: number; errors: number },
+    errorDetails: string[],
+    outputDir: string,
+    tableCount: number
+  ) {
+    errorDetails.forEach((detail) => this.logger.error(`✗ ${detail}`))
+
+    if (stats.errors > 0) {
+      this.logger.error(
+        `✗ Done with errors — ${stats.created} created, ${stats.skipped} skipped, ${stats.errors} error(s)`
+      )
+      return
+    }
+
+    if (this.dryRun) {
+      this.logger.success(`✓ Dry run — ${tableCount} table(s) rendered, nothing written`)
+      return
+    }
+
+    if (stats.created === 0 && stats.skipped === 0) {
+      this.logger.info('○ Nothing to do — no tables matched (check tableFilter)')
+      return
+    }
+
+    const skipped = stats.skipped > 0 ? `, ${stats.skipped} skipped (already exists)` : ''
+    this.logger.success(`✓ Done — ${stats.created} model(s) created in ${outputDir}${skipped}`)
   }
 }
