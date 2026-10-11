@@ -1,19 +1,22 @@
-import db from '@adonisjs/lucid/services/db'
 import type { Knex } from 'knex'
 import type { ColumnDef, ForeignKeyDef, SchemaInspector } from '../types.js'
+import { resolveKnex } from './resolve_knex.js'
 
 // PostgreSQL inspector: queries information_schema to extract
 // tables, columns and foreign keys from the 'public' schema.
 export class PgInspector implements SchemaInspector {
-  #knex: Knex
+  #connectionName: string
+  #knex: Knex | undefined
 
-  constructor(connectionName: string = 'default') {
-    this.#knex = db.connection(connectionName).getWriteClient()
+  constructor(connectionName: string = 'default', knex?: Knex) {
+    this.#connectionName = connectionName
+    this.#knex = knex
   }
 
   // Returns all BASE TABLE names from the public schema.
   async getTables(): Promise<string[]> {
-    const result = await this.#knex.raw(
+    const knex = await this.#client()
+    const result = await knex.raw(
       `SELECT table_name
        FROM   information_schema.tables
        WHERE  table_schema = 'public'
@@ -26,7 +29,8 @@ export class PgInspector implements SchemaInspector {
   // Returns column definitions for a given table.
   // Primary key detection uses a sub-query on table_constraints.
   async getColumns(table: string): Promise<ColumnDef[]> {
-    const pkResult = await this.#knex.raw(
+    const knex = await this.#client()
+    const pkResult = await knex.raw(
       `SELECT kcu.column_name
        FROM   information_schema.table_constraints tc
        JOIN   information_schema.key_column_usage  kcu USING (constraint_name, table_schema)
@@ -38,7 +42,7 @@ export class PgInspector implements SchemaInspector {
 
     const pkSet = new Set(pkResult.rows.map((r: { column_name: string }) => r.column_name))
 
-    const colResult = await this.#knex.raw(
+    const colResult = await knex.raw(
       `SELECT column_name, data_type, is_nullable, column_default
        FROM   information_schema.columns
        WHERE  table_name  = ?
@@ -66,7 +70,8 @@ export class PgInspector implements SchemaInspector {
   // Returns the set of columns carrying a UNIQUE constraint (used by the
   // RelationDetector to tell hasOne apart from hasMany).
   async #getUniqueColumns(table: string): Promise<Set<string>> {
-    const result = await this.#knex.raw(
+    const knex = await this.#client()
+    const result = await knex.raw(
       `SELECT kcu.column_name
         FROM   information_schema.table_constraints tc
         JOIN   information_schema.key_column_usage  kcu USING (constraint_name, table_schema)
@@ -79,10 +84,19 @@ export class PgInspector implements SchemaInspector {
     return new Set(result.rows.map((r: { column_name: string }) => r.column_name))
   }
 
+  // Returns the injected client, or resolves it from the Lucid connection.
+  async #client(): Promise<Knex> {
+    if (!this.#knex) {
+      this.#knex = await resolveKnex(this.#connectionName)
+    }
+    return this.#knex
+  }
+
   // Returns foreign keys via a triple join on
   // table_constraints / key_column_usage / constraint_column_usage.
   async getForeignKeys(table: string): Promise<ForeignKeyDef[]> {
-    const result = await this.#knex.raw(
+    const knex = await this.#client()
+    const result = await knex.raw(
       `SELECT kcu.column_name,
                ccu.table_name  AS foreign_table,
                ccu.column_name AS foreign_column

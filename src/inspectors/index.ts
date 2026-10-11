@@ -2,9 +2,10 @@ import db from '@adonisjs/lucid/services/db'
 import type { SchemaInspector } from '../types.js'
 import { PgInspector } from './pg_inspector.js'
 import { MysqlInspector } from './mysql_inspector.js'
+import { SqliteInspector } from './sqlite_inspector.js'
 
 // Factory: detects the dialect from the Lucid connection and
-// instantiates the matching inspector (PostgreSQL or MySQL).
+// instantiates the matching inspector (PostgreSQL, MySQL or SQLite).
 export function createInspector(connectionName: string = 'default'): SchemaInspector {
   const client = db.connection(connectionName)
   const dialect = client.dialect.name
@@ -14,6 +15,10 @@ export function createInspector(connectionName: string = 'default'): SchemaInspe
       return new PgInspector(connectionName)
     case 'mysql':
       return new MysqlInspector(connectionName)
+    case 'sqlite3':
+    case 'better-sqlite3':
+    case 'libsql':
+      return new SqliteInspector(connectionName)
     default:
       throw new Error(`Unsupported dialect: ${dialect}`)
   }
