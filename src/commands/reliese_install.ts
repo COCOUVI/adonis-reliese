@@ -41,6 +41,7 @@ export default class RelieseInstall extends BaseCommand {
     await fs.mkdir(path.dirname(dest), { recursive: true })
     await fs.copyFile(stub, dest)
     this.logger.success('✓ config/reliese.ts created')
+    this.logger.info('Next: run "node ace reliese:models" to generate your models')
   }
 
   /**

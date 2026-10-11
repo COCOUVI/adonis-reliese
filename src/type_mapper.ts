@@ -49,7 +49,7 @@ export class TypeMapper {
       return {
         name: col.name,
         sqlType: col.sqlType,
-        tsType: 'unknown',
+        tsType: 'any',
         isNullable: col.isNullable,
         isPrimary: col.isPrimary,
         hasDefault: col.hasDefault,
@@ -74,6 +74,12 @@ export class TypeMapper {
     const sdResult = this.#handleSoftDeleteColumn(col, onNeedsSoftDeletes)
     if (sdResult) {
       return sdResult
+    }
+
+    // Lucid convention: password hashes are never serialized.
+    const pwResult = this.#handlePasswordColumn(col)
+    if (pwResult) {
+      return pwResult
     }
 
     // Primary key
@@ -137,6 +143,24 @@ export class TypeMapper {
       isPrimary: false,
       hasDefault: false,
       decorator: 'column.dateTime()',
+    }
+  }
+
+  #handlePasswordColumn(col: ColumnDef): MappedColumn | null {
+    if (col.name !== 'password') return null
+
+    const decorator = col.isPrimary
+      ? 'column({ isPrimary: true, serializeAs: null })'
+      : 'column({ serializeAs: null })'
+
+    return {
+      name: col.name,
+      sqlType: col.sqlType,
+      tsType: 'string',
+      isNullable: col.isNullable,
+      isPrimary: col.isPrimary,
+      hasDefault: col.hasDefault,
+      decorator,
     }
   }
 
