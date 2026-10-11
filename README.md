@@ -10,15 +10,33 @@ Generate AdonisJS Lucid models from your existing database schema — columns, t
 
 ## Installation
 
+Install the package, then run the setup command **once**:
+
 ```sh
 npm i adonis-reliese
 node ace configure adonis-reliese
 ```
 
-This registers the commands and the provider, then creates `config/reliese.ts`. To scaffold the config file alone:
+The setup command does everything for you:
+
+1. Makes the `reliese:models` and `reliese:install` commands available in your app
+2. Registers the package provider
+3. Creates `config/reliese.ts` with sensible defaults (see [Configuration](#configuration))
+
+That's it — you can now run `node ace reliese:models`.
+
+### Regenerating the config file
+
+If you ever delete `config/reliese.ts` (or want a fresh copy), you don't need to redo the whole setup. This command recreates **only** the config file:
 
 ```sh
-node ace reliese:install [--force]
+node ace reliese:install
+```
+
+If the file already exists, you'll be asked for confirmation — or pass `--force` to overwrite it without asking:
+
+```sh
+node ace reliese:install --force
 ```
 
 ## Configuration
