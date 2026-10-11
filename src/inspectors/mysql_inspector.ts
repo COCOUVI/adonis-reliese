@@ -1,21 +1,12 @@
-import type { Knex } from 'knex'
 import type { ColumnDef, ForeignKeyDef, SchemaInspector } from '../types.js'
-import { resolveKnex } from './resolve_knex.js'
+import { BaseInspector } from './base_inspector.js'
 
-// Inspecteur MySQL / MariaDB : interroge information_schema avec
-// TABLE_SCHEMA = DATABASE() pour cibler la base courante.
-export class MysqlInspector implements SchemaInspector {
-  #connectionName: string
-  #knex: Knex | undefined
-
-  constructor(connectionName: string = 'default', knex?: Knex) {
-    this.#connectionName = connectionName
-    this.#knex = knex
-  }
-
+// MySQL / MariaDB inspector: queries information_schema with
+// TABLE_SCHEMA = DATABASE() to target the current database.
+export class MysqlInspector extends BaseInspector implements SchemaInspector {
   // Returns all BASE TABLE names from the current database.
   async getTables(): Promise<string[]> {
-    const knex = await this.#client()
+    const knex = await this.client()
     const result = await knex.raw(
       `SELECT TABLE_NAME
        FROM   information_schema.TABLES
@@ -23,13 +14,12 @@ export class MysqlInspector implements SchemaInspector {
          AND  TABLE_TYPE   = 'BASE TABLE'`
     )
 
-    // MySQL returns [rows, fields] from knex.raw() → result[0] holds the rows.
-    return result[0].map((r: { TABLE_NAME: string }) => r.TABLE_NAME)
+    return this.extractRows<{ TABLE_NAME: string }>(result).map((r) => r.TABLE_NAME)
   }
 
   // Returns column definitions. Primary key is identified by COLUMN_KEY = 'PRI'.
   async getColumns(table: string): Promise<ColumnDef[]> {
-    const knex = await this.#client()
+    const knex = await this.client()
     const result = await knex.raw(
       `SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_DEFAULT, COLUMN_KEY
        FROM   information_schema.COLUMNS
@@ -38,28 +28,26 @@ export class MysqlInspector implements SchemaInspector {
       [table]
     )
 
-    return result[0].map(
-      (r: {
-        COLUMN_NAME: string
-        DATA_TYPE: string
-        IS_NULLABLE: string
-        COLUMN_DEFAULT: string | null
-        COLUMN_KEY: string
-      }) => ({
-        name: r.COLUMN_NAME,
-        sqlType: this.#normalizeType(r.DATA_TYPE),
-        tsType: '',
-        isNullable: r.IS_NULLABLE === 'YES',
-        isPrimary: r.COLUMN_KEY === 'PRI',
-        hasDefault: r.COLUMN_DEFAULT !== null,
-      })
-    )
+    return this.extractRows<{
+      COLUMN_NAME: string
+      DATA_TYPE: string
+      IS_NULLABLE: string
+      COLUMN_DEFAULT: string | null
+      COLUMN_KEY: string
+    }>(result).map((r) => ({
+      name: r.COLUMN_NAME,
+      sqlType: this.#normalizeType(r.DATA_TYPE),
+      tsType: '',
+      isNullable: r.IS_NULLABLE === 'YES',
+      isPrimary: r.COLUMN_KEY === 'PRI',
+      hasDefault: r.COLUMN_DEFAULT !== null,
+    }))
   }
 
   // Returns the set of columns carrying a UNIQUE index (used by the
   // RelationDetector to tell hasOne apart from hasMany).
   async #getUniqueColumns(table: string): Promise<Set<string>> {
-    const knex = await this.#client()
+    const knex = await this.client()
     const result = await knex.raw(
       `SELECT COLUMN_NAME
         FROM   information_schema.STATISTICS
@@ -69,13 +57,13 @@ export class MysqlInspector implements SchemaInspector {
       [table]
     )
 
-    return new Set(result[0].map((r: { COLUMN_NAME: string }) => r.COLUMN_NAME))
+    return new Set(this.extractRows<{ COLUMN_NAME: string }>(result).map((r) => r.COLUMN_NAME))
   }
 
   // Returns foreign keys from KEY_COLUMN_USAGE.
   // No join needed: REFERENCED_TABLE_NAME is directly available.
   async getForeignKeys(table: string): Promise<ForeignKeyDef[]> {
-    const knex = await this.#client()
+    const knex = await this.client()
     const result = await knex.raw(
       `SELECT COLUMN_NAME, REFERENCED_TABLE_NAME AS foreign_table, REFERENCED_COLUMN_NAME AS foreign_column
         FROM   information_schema.KEY_COLUMN_USAGE
@@ -87,22 +75,14 @@ export class MysqlInspector implements SchemaInspector {
 
     const uniqueColumns = await this.#getUniqueColumns(table)
 
-    return result[0].map(
-      (r: { COLUMN_NAME: string; foreign_table: string; foreign_column: string }) => ({
-        column: r.COLUMN_NAME,
-        foreignTable: r.foreign_table,
-        foreignColumn: r.foreign_column,
-        isUnique: uniqueColumns.has(r.COLUMN_NAME),
-      })
-    )
-  }
-
-  // Returns the injected client, or resolves it from the Lucid connection.
-  async #client(): Promise<Knex> {
-    if (!this.#knex) {
-      this.#knex = await resolveKnex(this.#connectionName)
-    }
-    return this.#knex
+    return this.extractRows<{ COLUMN_NAME: string; foreign_table: string; foreign_column: string }>(
+      result
+    ).map((r) => ({
+      column: r.COLUMN_NAME,
+      foreignTable: r.foreign_table,
+      foreignColumn: r.foreign_column,
+      isUnique: uniqueColumns.has(r.COLUMN_NAME),
+    }))
   }
 
   // Normalizes a MySQL type for the TypeMapper:

@@ -4,6 +4,9 @@ export interface NamingStrategy {
   modelName(table: string): string
   propertyName(column: string): string
   relationName(table: string, type: string): string
+  // File base name (without extension) for the generated model,
+  // following the AdonisJS convention: lowercase singular (users → user).
+  fileName(table: string): string
 }
 
 // ── Package configuration ───────────────────────────────

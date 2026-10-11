@@ -25,7 +25,7 @@
 
 ## Feature 1 — ConfigLoader
 
-**Sprint 1 | Statut : À faire | Dépend de : Aucune**
+**Sprint 1 | Statut : Fait | Dépend de : Aucune**
 
 ### Objectif
 
@@ -65,7 +65,7 @@ export function defineConfig(cfg: Partial<ReliesesConfig>): ReliesesConfig {
 
 ## Feature 2 — SchemaInspector (PostgreSQL)
 
-**Sprint 2 | Statut : À faire | Dépend de : Feature 1**
+**Sprint 2 | Statut : En attente (hors v1 — SQLite + MySQL d'abord) | Dépend de : Feature 1**
 
 ### Objectif
 
@@ -101,7 +101,7 @@ WHERE  tc.constraint_type = 'FOREIGN KEY'
 
 ## Feature 3 — SchemaInspector (MySQL / MariaDB)
 
-**Sprint 3 | Statut : À faire | Dépend de : Feature 1 (parallèle à Feature 2)**
+**Sprint 3 | Statut : Fait | Dépend de : Feature 1 (parallèle à Feature 2)**
 
 ### Objectif
 
@@ -121,7 +121,7 @@ Implémenter `ISchemaInspector` pour MySQL. Peut se développer en parallèle de
 
 ## Feature 4 — TypeMapper
 
-**Sprint 4 | Statut : À faire | Dépend de : Feature 2 ou 3**
+**Sprint 4 | Statut : Fait | Dépend de : Feature 2 ou 3**
 
 ### Objectif
 
@@ -135,7 +135,7 @@ Convertir un type SQL normalisé en type TypeScript et en décorateur Lucid. Ali
 | 2. Normalisation input      | Avant lookup :`toLowerCase()` + retirer la précision avec `/\(.*\)/` → `''`. Exemples : `'varchar(255)'→'varchar'`, `'int4'→'int4'` (alias pg → ajouter `int4→number`).                                                                                                                          |
 | 3. PK                       | Si`isPrimary=true` → décorateur devient `@column({ isPrimary: true })`.                                                                                                                                                                                                                          |
 | 4. created_at / updated_at  | Si`withTimestamps=true` et nom dans `['created_at','updated_at']` → utiliser `@column.dateTime` avec `autoCreate`/`autoUpdate`. Ne pas les générer comme simples `@column()`.                                                                                                                    |
-| 5. deleted_at               | Si`withSoftDelete=true` et nom = `'deleted_at'` → `@column.dateTime()`. Signaler au ModelWriter d'ajouter le mixin `SoftDeletes`.                                                                                                                                                                |
+| 5. deleted_at               | Si`withSoftDelete=true` et nom = `'deleted_at'` → `@column.dateTime()`. Note : Lucid v7 ne fournit aucun mixin `SoftDeletes`, donc aucun mixin n'est ajouté — seule la colonne est mappée.                                                                                                                                                                          |
 | 6. Type inconnu             | Fallback :`tsType='unknown'`, `decorator='@column()'` + commentaire `// TODO: type SQL non mappé : <sqlType>`.                                                                                                                                                                                   |
 | 7. Flag needsDateTimeImport | Le TypeMapper retourne aussi un booléen indiquant si au moins une colonne nécessite l'import de`DateTime` (luxon).                                                                                                                                                                               |
 
@@ -162,7 +162,7 @@ export const TYPE_MAP: Record<string, MappedType> = {
 
 ## Feature 5 — ModelWriter (colonnes, sans relations)
 
-**Sprint 5 | Statut : À faire | Dépend de : Feature 4**
+**Sprint 5 | Statut : Fait | Dépend de : Feature 4**
 
 ### Objectif
 
@@ -207,7 +207,7 @@ export default class BlogPost extends BaseModel {
 
 ## Feature 6 — RelationDetector
 
-**Sprint 6 | Statut : À faire | Dépend de : Feature 2 ou 3 (parallèle à Feature 5)**
+**Sprint 6 | Statut : Fait | Dépend de : Feature 2 ou 3 (parallèle à Feature 5)**
 
 ### Objectif
 
@@ -240,7 +240,7 @@ function isPivot(table: string, cols: ColumnDef[], fks: ForeignKeyDef[]): boolea
 
 ## Feature 7 — ModelWriter (avec relations)
 
-**Sprint 7 | Statut : À faire | Dépend de : Feature 5 + Feature 6**
+**Sprint 7 | Statut : Fait | Dépend de : Feature 5 + Feature 6**
 
 ### Objectif
 
@@ -284,7 +284,7 @@ export default class Post extends BaseModel {
 
 ## Feature 8 — Commande `reliese:models`
 
-**Sprint 8 | Statut : À faire | Dépend de : Features 5 + 6 + 7**
+**Sprint 8 | Statut : Fait | Dépend de : Features 5 + 6 + 7**
 
 ### Objectif
 
@@ -304,7 +304,7 @@ Commande Ace principale. Orchestre le pipeline complet : config → inspect → 
 
 ## Feature 9 — Commande `reliese:install`
 
-**Sprint 9 | Statut : À faire | Dépend de : Feature 1 (peut se faire dès le Sprint 1)**
+**Sprint 9 | Statut : Fait | Dépend de : Feature 1 (peut se faire dès le Sprint 1)**
 
 ### Objectif
 
@@ -341,13 +341,13 @@ export default defineConfig({
 
 ### Feature 10 — NamingStrategy personnalisée
 
-**Dépend de : Feature 1**
+**Dépend de : Feature 1 — Statut : Fait**
 
-Exposer l'interface `INamingStrategy` avec 3 méthodes : `modelName(table: string): string` (table → PascalCase), `propertyName(col: string): string` (col → camelCase), `relationName(table: string, type: RelationType): string`. Permettre à l'utilisateur de passer sa propre classe dans `defineConfig`. `ModelWriter` et `RelationDetector` reçoivent la strategy par injection.
+Exposer l'interface `INamingStrategy` avec 4 méthodes : `modelName(table: string): string` (table → PascalCase), `propertyName(col: string): string` (col → camelCase), `relationName(table: string, type: RelationType): string`, `fileName(table: string): string` (table → nom de fichier minuscule singulier, ex. `blog_posts → blog_post`, selon la convention AdonisJS). Permettre à l'utilisateur de passer sa propre classe dans `defineConfig`. `ModelWriter` et `RelationDetector` reçoivent la strategy par injection.
 
 ### Feature 11 — SchemaInspector SQLite
 
-**Dépend de : Feature 1**
+**Dépend de : Feature 1 — Statut : Fait**
 
 SQLite n'a pas d'`information_schema`. Utiliser les PRAGMA :
 
@@ -359,7 +359,7 @@ Implémenter `SqliteInspector` derrière la même interface `ISchemaInspector` e
 
 ### Feature 12 — Cache schéma
 
-**Dépend de : Feature 2 ou 3 — non critique, à implémenter en dernier**
+**Dépend de : Feature 2 ou 3 — non critique, à implémenter en dernier — Statut : Fait**
 
 Après une inspection réussie, sérialiser le schéma complet en JSON dans `.adonis/reliese-schema.json`. Au prochain run, si le fichier existe et que `--no-cache` n'est pas passé, charger le cache sans interroger la base. Invalider automatiquement si `config.connection` change (stocker un hash de la config dans le cache).
 

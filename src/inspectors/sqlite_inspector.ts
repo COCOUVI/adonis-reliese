@@ -1,6 +1,5 @@
-import type { Knex } from 'knex'
 import type { ColumnDef, ForeignKeyDef, SchemaInspector } from '../types.js'
-import { resolveKnex } from './resolve_knex.js'
+import { BaseInspector } from './base_inspector.js'
 
 // Raw row shapes returned by the SQLite PRAGMAs.
 interface TableListRow {
@@ -45,15 +44,7 @@ interface IndexInfoRow {
 //   - PRAGMA table_info(table)      → columns
 //   - PRAGMA foreign_key_list(table) → foreign keys
 //   - PRAGMA index_list / index_info → UNIQUE columns (for hasOne detection)
-export class SqliteInspector implements SchemaInspector {
-  #connectionName: string
-  #knex: Knex | undefined
-
-  constructor(connectionName: string = 'default', knex?: Knex) {
-    this.#connectionName = connectionName
-    this.#knex = knex
-  }
-
+export class SqliteInspector extends BaseInspector implements SchemaInspector {
   // Returns all user table names, excluding SQLite internal tables.
   async getTables(): Promise<string[]> {
     try {
@@ -63,8 +54,8 @@ export class SqliteInspector implements SchemaInspector {
         .map((r) => r.name)
     } catch {
       // PRAGMA table_list needs SQLite 3.37+. Fall back to sqlite_master.
-      const knex = await this.#client()
-      const rows = this.#extractRows<{ name: string }>(
+      const knex = await this.client()
+      const rows = this.extractRows<{ name: string }>(
         await knex.raw(
           `SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`
         )
@@ -123,35 +114,12 @@ export class SqliteInspector implements SchemaInspector {
     return unique
   }
 
-  // Returns the injected client, or resolves it from the Lucid connection.
-  async #client(): Promise<Knex> {
-    if (!this.#knex) {
-      this.#knex = await resolveKnex(this.#connectionName)
-    }
-    return this.#knex
-  }
-
   // Runs a PRAGMA and normalizes the knex raw result into a row array.
   // PRAGMAs take no bindable parameters on every driver, so the table
   // name is interpolated after escaping double quotes.
   async #pragma<T>(pragma: string): Promise<T[]> {
-    const knex = await this.#client()
-    return this.#extractRows<T>(await knex.raw(`PRAGMA ${pragma}`))
-  }
-
-  // Normalizes knex.raw() results across drivers:
-  //   - sqlite3 / better-sqlite3 → row array directly
-  //   - pg → { rows }
-  //   - mysql → [rows, fields]
-  #extractRows<T>(result: unknown): T[] {
-    if (Array.isArray(result)) {
-      if (result.length > 0 && Array.isArray(result[0])) return result[0] as T[]
-      return result as T[]
-    }
-    if (result && typeof result === 'object' && Array.isArray((result as { rows: unknown }).rows)) {
-      return (result as { rows: T[] }).rows
-    }
-    return []
+    const knex = await this.client()
+    return this.extractRows<T>(await knex.raw(`PRAGMA ${pragma}`))
   }
 
   // Double-quotes an identifier, doubling embedded quotes.

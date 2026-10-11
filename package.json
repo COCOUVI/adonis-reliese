@@ -1,7 +1,7 @@
 {
-  "name": "pkg-starter-kit",
-  "description": "",
-  "version": "0.0.0",
+  "name": "adonis-reliese",
+  "description": "Generate AdonisJS Lucid models from your database schema (SQLite & MySQL)",
+  "version": "0.1.0",
   "engines": {
     "node": ">=24.0.0"
   },
@@ -34,7 +34,15 @@
     "version": "npm run build",
     "prepublishOnly": "npm run build"
   },
-  "keywords": [],
+  "keywords": [
+    "adonisjs",
+    "lucid",
+    "models",
+    "codegen",
+    "reliese",
+    "sqlite",
+    "mysql"
+  ],
   "author": "",
   "license": "MIT",
   "devDependencies": {
@@ -49,6 +57,7 @@
     "@poppinss/ts-exec": "^1.4.4",
     "@release-it/conventional-changelog": "^10.0.5",
     "@types/node": "^25.3.5",
+    "better-sqlite3": "^13.0.3",
     "c8": "^11.0.0",
     "copyfiles": "^2.4.1",
     "cross-env": "^10.1.0",
@@ -61,7 +70,8 @@
   },
   "peerDependencies": {
     "@adonisjs/assembler": "^8.0.0",
-    "@adonisjs/core": "^7.0.0"
+    "@adonisjs/core": "^7.0.0",
+    "@adonisjs/lucid": "^22.0.0"
   },
   "peerDependenciesMeta": {
     "@adonisjs/assembler": {
@@ -122,9 +132,5 @@
       "tests/**"
     ]
   },
-  "prettier": "@adonisjs/prettier-config",
-  "dependencies": {
-    "@rolldown/binding-win32-x64-msvc": "^1.0.0-rc.17",
-    "@swc/core-win32-x64-msvc": "^1.15.43"
-  }
+  "prettier": "@adonisjs/prettier-config"
 }
