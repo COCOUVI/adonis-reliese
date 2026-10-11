@@ -13,7 +13,9 @@ export interface NamingStrategy {
 
 export interface ReliesesConfig {
   outputDir: string
-  connection: string
+  // Lucid connection to inspect. When omitted (or the legacy value
+  // 'default'), the app's primary connection from config/database.ts is used.
+  connection?: string
   tableFilter: {
     include: string[]
     exclude: string[]

@@ -20,7 +20,7 @@ export default class RelieseInstall extends BaseCommand {
 
   async run() {
     const dest = path.join(process.cwd(), 'config', 'reliese.ts')
-    const stub = path.join(stubsRoot, 'reliese_config.stub')
+    const stub = await this.#resolveStub()
 
     let exists = false
     try {
@@ -41,5 +41,27 @@ export default class RelieseInstall extends BaseCommand {
     await fs.mkdir(path.dirname(dest), { recursive: true })
     await fs.copyFile(stub, dest)
     this.logger.success('✓ config/reliese.ts created')
+  }
+
+  /**
+   * Resolves the stub path both in development (stubsRoot = "<pkg>/stubs")
+   * and in the built package, where tsdown bundles this command into
+   * "build/reliese_install-*.js" (stubsRoot = "<pkg>/build") while the
+   * stub is copied to "build/stubs/reliese_config.stub".
+   */
+  async #resolveStub(): Promise<string> {
+    const candidates = [
+      path.join(stubsRoot, 'reliese_config.stub'),
+      path.join(stubsRoot, 'stubs', 'reliese_config.stub'),
+    ]
+    for (const candidate of candidates) {
+      try {
+        await fs.access(candidate)
+        return candidate
+      } catch {
+        // try next candidate
+      }
+    }
+    throw new Error(`Could not locate reliese_config.stub. Tried: ${candidates.join(', ')}`)
   }
 }

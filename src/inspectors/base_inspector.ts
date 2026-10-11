@@ -5,10 +5,10 @@ import { resolveKnex } from './resolve_knex.js'
 // resolution (importable without a booted Adonis app) plus a tolerant
 // raw-result reader that accepts every knex driver shape.
 export abstract class BaseInspector {
-  #connectionName: string
+  #connectionName: string | undefined
   #knex: Knex | undefined
 
-  constructor(connectionName: string = 'default', knex?: Knex) {
+  constructor(connectionName?: string, knex?: Knex) {
     this.#connectionName = connectionName
     this.#knex = knex
   }

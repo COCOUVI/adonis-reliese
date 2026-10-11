@@ -1,9 +1,9 @@
 import type { ReliesesConfig } from './types.js'
 
-// Default values applied when the user config is partial.
-const defaults: ReliesesConfig = {
+// Default values applied when the user config is partial. `connection`
+// is intentionally omitted so the app's primary Lucid connection is used.
+const defaults = {
   outputDir: 'app/models',
-  connection: 'default',
   tableFilter: {
     include: [],
     exclude: ['adonis_schema', 'adonis_schema_versions'],
