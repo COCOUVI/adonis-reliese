@@ -1,19 +1,22 @@
-import db from '@adonisjs/lucid/services/db'
 import type { Knex } from 'knex'
 import type { ColumnDef, ForeignKeyDef, SchemaInspector } from '../types.js'
+import { resolveKnex } from './resolve_knex.js'
 
 // Inspecteur MySQL / MariaDB : interroge information_schema avec
 // TABLE_SCHEMA = DATABASE() pour cibler la base courante.
 export class MysqlInspector implements SchemaInspector {
-  #knex: Knex
+  #connectionName: string
+  #knex: Knex | undefined
 
-  constructor(connectionName: string = 'default') {
-    this.#knex = db.connection(connectionName).getWriteClient()
+  constructor(connectionName: string = 'default', knex?: Knex) {
+    this.#connectionName = connectionName
+    this.#knex = knex
   }
 
   // Returns all BASE TABLE names from the current database.
   async getTables(): Promise<string[]> {
-    const result = await this.#knex.raw(
+    const knex = await this.#client()
+    const result = await knex.raw(
       `SELECT TABLE_NAME
        FROM   information_schema.TABLES
        WHERE  TABLE_SCHEMA = DATABASE()
@@ -26,7 +29,8 @@ export class MysqlInspector implements SchemaInspector {
 
   // Returns column definitions. Primary key is identified by COLUMN_KEY = 'PRI'.
   async getColumns(table: string): Promise<ColumnDef[]> {
-    const result = await this.#knex.raw(
+    const knex = await this.#client()
+    const result = await knex.raw(
       `SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_DEFAULT, COLUMN_KEY
        FROM   information_schema.COLUMNS
        WHERE  TABLE_SCHEMA = DATABASE()
@@ -55,7 +59,8 @@ export class MysqlInspector implements SchemaInspector {
   // Returns the set of columns carrying a UNIQUE index (used by the
   // RelationDetector to tell hasOne apart from hasMany).
   async #getUniqueColumns(table: string): Promise<Set<string>> {
-    const result = await this.#knex.raw(
+    const knex = await this.#client()
+    const result = await knex.raw(
       `SELECT COLUMN_NAME
         FROM   information_schema.STATISTICS
         WHERE  TABLE_SCHEMA = DATABASE()
@@ -70,7 +75,8 @@ export class MysqlInspector implements SchemaInspector {
   // Returns foreign keys from KEY_COLUMN_USAGE.
   // No join needed: REFERENCED_TABLE_NAME is directly available.
   async getForeignKeys(table: string): Promise<ForeignKeyDef[]> {
-    const result = await this.#knex.raw(
+    const knex = await this.#client()
+    const result = await knex.raw(
       `SELECT COLUMN_NAME, REFERENCED_TABLE_NAME AS foreign_table, REFERENCED_COLUMN_NAME AS foreign_column
         FROM   information_schema.KEY_COLUMN_USAGE
         WHERE  TABLE_SCHEMA = DATABASE()
@@ -89,6 +95,14 @@ export class MysqlInspector implements SchemaInspector {
         isUnique: uniqueColumns.has(r.COLUMN_NAME),
       })
     )
+  }
+
+  // Returns the injected client, or resolves it from the Lucid connection.
+  async #client(): Promise<Knex> {
+    if (!this.#knex) {
+      this.#knex = await resolveKnex(this.#connectionName)
+    }
+    return this.#knex
   }
 
   // Normalizes a MySQL type for the TypeMapper:
